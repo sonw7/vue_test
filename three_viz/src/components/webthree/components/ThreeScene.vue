@@ -204,8 +204,17 @@ export default {
             console.error("Error loading the text file:", error);
           });
 
-        // 监听窗口大小变化
-        window.addEventListener("resize", () => sceneManager.value.onWindowResize());
+        // 监听窗口大小变化，更新画布尺寸
+        const resizeHandler = () => {
+          if (sceneManager.value && sceneContainer.value) {
+            // 传入容器的宽高，确保画布自适应屏幕尺寸
+            sceneManager.value.onWindowResize(
+              sceneContainer.value.clientWidth,
+              sceneContainer.value.clientHeight
+            );
+          }
+        };
+        window.addEventListener("resize", resizeHandler);
       }
     });
 
@@ -230,8 +239,9 @@ export default {
 </script>
 
 <style scoped>
+/* 将容器设置为 100vw 和 100vh，确保画布自适应屏幕宽高 */
 div {
-  width: 100%;
+  width: 100vw;
   height: 100vh;
   overflow: hidden;
 }
