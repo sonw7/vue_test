@@ -24,12 +24,12 @@ import SceneManager from "./SceneManager";
 import { processData } from '../utils/dataUtils';
 import { getcolorbylayer } from '../utils/getMeshColor';
 import CoordinateTransformer from '../utils/CoordinateTransformer';
-import {
-  getFaultModel,
-  getDrillsModel,
-  get3DRoadwayModel, 
-  get3DFalutsModel
-} from "../modelRequset/threeModelRequest";
+// import {
+//   getFaultModel,
+//   getDrillsModel,
+//   get3DRoadwayModel, 
+//   get3DFalutsModel
+// } from "../modelRequset/threeModelRequest";
 import LayerControl from "./LayerControl.vue";
 import Menu from "./Menu.vue";
 import { menuItems as baseMenuItems, menuDefaultValues } from "../configs/menuConfig";
@@ -105,76 +105,73 @@ export default {
         const transformed3D = transformer.transformFlatData(flat3D, 3, false);
 
         // 地层模型
-        getFaultModel()
-          .then((processedData) => {
-            processedData.forEach((layer, index) => {
-              sceneManager.value.addModel({
-                type: "triangleMesh",
-                data: {
-                  vertices: layer.vertices,
-                  indices: layer.indices,
-                },
-                layer: `FaultLayer_${index}`,
-                options: {
-                  color: getcolorbylayer(index),
-                  scaleFactor: {
-                    scaleX: transformer.scaleX,
-                    scaleY: transformer.scaleY,
-                    scaleZ: transformer.scaleZ,
-                  },
-                  rotationAngle: {},
-                  textureUrl: getTextureUrl(index % 5),
-                },
-              });
-              layerNames.value.push(["地层", `FaultLayer_${index}`]);
-            });
-          });
+        // getFaultModel().then((processedData) => {
+        //     processedData.forEach((layer, index) => {
+        //       sceneManager.value.addModel({
+        //         type: "triangleMesh",
+        //         data: {
+        //           vertices: layer.vertices,
+        //           indices: layer.indices,
+        //         },
+        //         layer: `FaultLayer_${index}`,
+        //         options: {
+        //           color: getcolorbylayer(index),
+        //           scaleFactor: {
+        //             scaleX: transformer.scaleX,
+        //             scaleY: transformer.scaleY,
+        //             scaleZ: transformer.scaleZ,
+        //           },
+        //           rotationAngle: {},
+        //           textureUrl: getTextureUrl(index % 5),
+        //         },
+        //       });
+        //       layerNames.value.push(["地层", `FaultLayer_${index}`]);
+        //     });
+        //   });
 
         // 钻孔模型
-        getDrillsModel()
-          .then((processedData) => {
-            console.debug("钻孔响应数据:", processedData);
-            let options = {
-              scaleFactor: {
-                scaleX: transformer.scaleX,
-                scaleY: transformer.scaleY,
-                scaleZ: transformer.scaleZ,
-              },
-              rotationAngle: {},
-            };
-            processedData.forEach((drill) => {
-              sceneManager.value.renderDrill(drill, getcolorbylayer, { options });
-              layerNames.value.push(["钻孔", `${drill.name}`]);
-            });
-            console.log("所有图层已添加:", layerNames.value);
-          })
-          .catch((error) => {
-            console.error("请求或处理数据时发生错误:", error);
-          });
+        // getDrillsModel().then((processedData) => {
+        //     console.debug("钻孔响应数据:", processedData);
+        //     let options = {
+        //       scaleFactor: {
+        //         scaleX: transformer.scaleX,
+        //         scaleY: transformer.scaleY,
+        //         scaleZ: transformer.scaleZ,
+        //       },
+        //       rotationAngle: {},
+        //     };
+        //     processedData.forEach((drill) => {
+        //       sceneManager.value.renderDrill(drill, getcolorbylayer, { options });
+        //       layerNames.value.push(["钻孔", `${drill.name}`]);
+        //     });
+        //     console.log("所有图层已添加:", layerNames.value);
+        //   })
+        //   .catch((error) => {
+        //     console.error("请求或处理数据时发生错误:", error);
+        //   });
 
         // 3D 道路模型
-        get3DRoadwayModel()
-          .then((processedData) => {
-            console.debug("3DRoadwayModel响应数据:", processedData);
-            sceneManager.value.addModel({
-              type: "triangleMesh",
-              data: {
-                vertices: processedData.vertices,
-                indices: processedData.indices,
-              },
-              layer: `Roadway`,
-              options: {
-                color: getcolorbylayer(0),
-                scaleFactor: 1,
-                rotationAngle: {},
-              },
-            });
-            layerNames.value.push(["Roadway"]);
-            console.log("所有图层已添加:", layerNames.value);
-          })
-          .catch((error) => {
-            console.error("请求或处理数据时发生错误:", error);
-          });
+        // get3DRoadwayModel().then((processedData) => {
+        //     console.debug("3DRoadwayModel响应数据:", processedData);
+        //     sceneManager.value.addModel({
+        //       type: "triangleMesh",
+        //       data: {
+        //         vertices: processedData.vertices,
+        //         indices: processedData.indices,
+        //       },
+        //       layer: `Roadway`,
+        //       options: {
+        //         color: getcolorbylayer(0),
+        //         scaleFactor: 1,
+        //         rotationAngle: {},
+        //       },
+        //     });
+        //     layerNames.value.push(["Roadway"]);
+        //     console.log("所有图层已添加:", layerNames.value);
+        //   })
+        //   .catch((error) => {
+        //     console.error("请求或处理数据时发生错误:", error);
+        //   });
 
         // 地层渲染尝试（从文本文件加载）
         fetch("/layer.txt")
