@@ -93,12 +93,22 @@ export default {
 
         // 初始化坐标转换
         const transformer = new CoordinateTransformer({
-          offsetX: 10,
-          offsetY: 20,
-          offsetZ: 30,
-          scaleX: 0.5,
-          scaleY: 0.5,
-          scaleZ: 0.5,
+          offset: {
+            x: 0,
+            y: 0,
+            z: 0
+          },
+          scale: {
+            x: 0.005,
+            y: 0.005,
+            z: 0.005
+          },
+          // rotation 参数是可选的，如果不需要旋转可以不提供
+          rotation: {
+            x: 0,
+            y: 0,
+            z: 0
+          }
         });
 
         // 示例：数组数据变换
@@ -107,6 +117,38 @@ export default {
         //本地加载巷道模型
         roadmodeltest(sceneManager.value.scene);
 
+        // 地层渲染尝试（从文本文件加载）
+        fetch("/layer1.txt")
+          .then(response => {
+            if (!response.ok) {
+              throw new Error("Network response was not ok");
+            }
+            return response.text();
+          })
+          .then(text => {
+            const processedData = processData(text);
+            console.log(processedData);
+            processedData.forEach((layer, index) => {
+              sceneManager.value.addModel({
+                type: "triangleMesh",
+                data: {
+                  vertices: layer.vertices,
+                  indices: layer.indices,
+                },
+                layer: `indexedLayer_${index}`,
+                options: {
+                  color: getcolorbylayer(index),
+                  scaleFactor: transformer.scale.x ,
+                  rotationAngle: { x: -Math.PI / 2 ,z:-Math.PI/2},
+                  position: { x: 0, y: 0, z: 0 },
+                },
+              });
+            });
+            console.log("数据", layerNames.value);
+          })
+          .catch(error => {
+            console.error("Error loading the text file:", error);
+          });
 
         // 地层模型
         // getFaultModel().then((processedData) => {
@@ -177,37 +219,7 @@ export default {
         //     console.error("请求或处理数据时发生错误:", error);
         //   });
 
-        // 地层渲染尝试（从文本文件加载）
-        fetch("/layer1.txt")
-          .then(response => {
-            if (!response.ok) {
-              throw new Error("Network response was not ok");
-            }
-            return response.text();
-          })
-          .then(text => {
-            const processedData = processData(text);
-            console.log(processedData);
-            processedData.forEach((layer, index) => {
-              sceneManager.value.addModel({
-                type: "triangleMesh",
-                data: {
-                  vertices: layer.vertices,
-                  indices: layer.indices,
-                },
-                layer: `indexedLayer_${index}`,
-                options: {
-                  color: getcolorbylayer(index),
-                  scaleFactor: 0.005,
-                  rotationAngle: { x: -Math.PI / 2 ,z:-Math.PI/2},
-                },
-              });
-            });
-            console.log("数据", layerNames.value);
-          })
-          .catch(error => {
-            console.error("Error loading the text file:", error);
-          });
+
 
         // 监听窗口大小变化，更新画布尺寸
         const resizeHandler = () => {

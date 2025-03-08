@@ -195,40 +195,46 @@ _useFirstPersonControls() {
   }
 
   // 添加数据
-  addModel({ type, data, layer = 'default', options = {} }) {
-    let object;
+// 添加数据
+addModel({ type, data, layer = 'default', options = {} }) {
+  let object;
 
-    switch (type) {
-      case 'points': // 点数据
-        object = this._createPointCloud(data, options);
-        break;
+  // 确保 options 中有 position 属性
+  options.position = options.position || { x: 0, y: 0, z: 0 };
 
-      case 'indices': // 索引数据
-        object = this._createIndexedMesh(data, options);
-        break;
+  switch (type) {
+    case 'points': // 点数据
+      object = this._createPointCloud(data, options);
+      break;
 
-      case 'model': // 模型文件
-        this._loadModel(data, layer, options);
-        return;
+    case 'indices': // 索引数据
+      object = this._createIndexedMesh(data, options);
+      break;
 
-      case 'custom': // 自定义渲染
-        object = options.renderFunction?.(data, THREE);
-        break;
-       case 'triangleMesh': // 三角面数据
-         object = this._createTriangleMesh(data, options);
-         break;
-      default:
-        console.warn('Unsupported data type:', type);
-        return;
-    }
-    if (object) {
+    case 'model': // 模型文件
+      this._loadModel(data, layer, options);
+      return;
+
+    case 'custom': // 自定义渲染
+      object = options.renderFunction?.(data, THREE);
+      break;
       
-      // 添加对象到场景并分层管理
-      this._addToLayer(layer, object);
-      return { layer, object }; // 返回图层名和对象
-    }
-    return null;
+    case 'triangleMesh': // 三角面数据
+      object = this._createTriangleMesh(data, options);
+      break;
+      
+    default:
+      console.warn('Unsupported data type:', type);
+      return;
   }
+  
+  if (object) {
+    // 添加对象到场景并分层管理
+    this._addToLayer(layer, object);
+    return { layer, object }; // 返回图层名和对象
+  }
+  return null;
+}
 
   // 移除数据
   removeData(layer) {
@@ -259,10 +265,75 @@ _useFirstPersonControls() {
         return [];
       }
     }
+    //更新贴图
+    replaceTexture(mesh, textureUrl) {
+      const textureLoader = new THREE.TextureLoader();
+    
+      // 加载新贴图
+      textureLoader.load(textureUrl, (texture) => {
+        if (mesh.material.map) {
+          mesh.material.map.dispose(); // 释放旧贴图
+        }
+        mesh.material.map = texture; // 应用新贴图
+        mesh.material.needsUpdate = true; // 确保更新材质
+      });
+    }
+    
+    // 更新数据
+    updateData(layer, newData, options = {}) {
+      this.removeData(layer);
+      this.addModel({ type: options.type, data: newData, layer, options });
+    }
+// 创建点云
+_createPointCloud(points, { color = 0x00ff00, size = 0.1, position = { x: 0, y: 0, z: 0 } }) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+
+  const material = new THREE.PointsMaterial({ color, size });
+  const pointCloud = new THREE.Points(geometry, material);
   
+  // 应用位移
+  pointCloud.position.set(position.x || 0, position.y || 0, position.z || 0);
+  
+  return pointCloud;
+}
+
+// 创建索引数据
+_createIndexedMesh({ vertices, indices, index = 0 }, { 
+  color = 0xffffff, 
+  position = { x: 0, y: 0, z: 0 },
+  scaleFactor = 0.005,
+  rotation = { x: Math.PI / 2, y: 0, z: 0 }
+}) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(vertices, 3)
+  );
+  geometry.setIndex(indices);
+
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    wireframe: true,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+
+  // 应用缩放
+  mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+  // 应用旋转
+  mesh.rotation.set(rotation.x || 0, rotation.y || 0, rotation.z || 0);
+  
+  // 应用位移
+  mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
+
+  mesh.renderOrder = 100 - index;
+
+  return mesh;
+}
+
 // 创建三角面网格
 _createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
-  // console.log(options)
   const geometry = new THREE.BufferGeometry();
   // 设置顶点位置
   geometry.setAttribute(
@@ -276,87 +347,33 @@ _createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
   geometry.computeBoundingBox();
 
   // 创建材质
-    const material = new THREE.MeshBasicMaterial({
-      color: options.color || 0xffffff, // 默认白色
-      side: THREE.DoubleSide, // 双面渲染
-    });
-    const mesh = new THREE.Mesh(geometry, material);
+  const material = new THREE.MeshBasicMaterial({
+    color: options.color || 0xffffff, // 默认白色
+    side: THREE.DoubleSide, // 双面渲染
+  });
+  const mesh = new THREE.Mesh(geometry, material);
 
-  
   // 应用缩放
-  const scaleFactor = options.scaleFactor || 0.1; // 默认不缩放
-  mesh.scale.set(scaleFactor.scaleX||1, scaleFactor.scaleY||1, scaleFactor.scaleZ||1);
+  const scaleFactor = options.scaleFactor || { scaleX: 1, scaleY: 1, scaleZ: 1 };
+  mesh.scale.set(scaleFactor.scaleX || 1, scaleFactor.scaleY || 1, scaleFactor.scaleZ || 1);
 
   // 应用旋转
-  const rotationAngle = options.rotationAngle || {x:0,y:0,z:0}; // 默认无旋转
-  mesh.rotation.set(rotationAngle.x||0, rotationAngle.y||0,rotationAngle.z|| 0);
+  const rotationAngle = options.rotationAngle || { x: 0, y: 0, z: 0 };
+  mesh.rotation.set(rotationAngle.x || 0, rotationAngle.y || 0, rotationAngle.z || 0);
+  
+  // 应用位移
+  const position = options.position || { x: 0, y: 0, z: 0 };
+  mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
 
   // 设置渲染顺序
   mesh.renderOrder = 100 - index;
-  if(options.textureUrl){
-    this.addTexture(mesh,options.textureUrl)
-  }
-    // scene.add(mesh);
-    return mesh
-  }
-
-  //更新贴图
-  replaceTexture(mesh, textureUrl) {
-    const textureLoader = new THREE.TextureLoader();
   
-    // 加载新贴图
-    textureLoader.load(textureUrl, (texture) => {
-      if (mesh.material.map) {
-        mesh.material.map.dispose(); // 释放旧贴图
-      }
-      mesh.material.map = texture; // 应用新贴图
-      mesh.material.needsUpdate = true; // 确保更新材质
-    });
+  if (options.textureUrl) {
+    this.addTexture(mesh, options.textureUrl);
   }
   
-  // 更新数据
-  updateData(layer, newData, options = {}) {
-    this.removeData(layer);
-    this.addModel({ type: options.type, data: newData, layer, options });
-  }
-
-  // 创建点云
-  _createPointCloud(points, { color = 0x00ff00, size = 0.1 }) {
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-
-    const material = new THREE.PointsMaterial({ color, size });
-    return new THREE.Points(geometry, material);
-  }
-
-  // 创建索引数据
-  _createIndexedMesh({ vertices, indices,index=0 }, { color = 0xffffff }) {
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute(vertices, 3)
-    );
-    geometry.setIndex(indices);
-
-    const material = new THREE.MeshBasicMaterial({
-      color,
-      wireframe: true,
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-
-    const scaleFactor = 0.005; // 缩小为原始大小的 10%
-    mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
-
-    // 设置旋转
-    const rotationAngle = Math.PI / 2; // 旋转 45 度
-    mesh.rotation.set(rotationAngle, 0, 0);
-
-    mesh.renderOrder = 100 - index;
-
-    // scene.add(mesh);
-    return mesh
-    // return new THREE.Mesh(geometry, material);
-  }
+  return mesh;
+}
 
   // 加载模型
   // 加载模型（异步支持贴图）
