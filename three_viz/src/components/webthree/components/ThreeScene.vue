@@ -24,6 +24,7 @@ import SceneManager from "./SceneManager";
 import { processData } from '../utils/dataUtils';
 import { getcolorbylayer } from '../utils/getMeshColor';
 import CoordinateTransformer from '../utils/CoordinateTransformer';
+import roadmodeltest from "../staticModel/RoadwayModel";
 // import {
 //   getFaultModel,
 //   getDrillsModel,
@@ -103,6 +104,9 @@ export default {
         // 示例：数组数据变换
         const flat3D = [1, 2, 3, 4, 5, 6, 7, 8, 9];
         const transformed3D = transformer.transformFlatData(flat3D, 3, false);
+        //本地加载巷道模型
+        roadmodeltest(sceneManager.value.scene);
+
 
         // 地层模型
         // getFaultModel().then((processedData) => {
@@ -174,7 +178,7 @@ export default {
         //   });
 
         // 地层渲染尝试（从文本文件加载）
-        fetch("/layer.txt")
+        fetch("/layer1.txt")
           .then(response => {
             if (!response.ok) {
               throw new Error("Network response was not ok");
@@ -183,6 +187,7 @@ export default {
           })
           .then(text => {
             const processedData = processData(text);
+            console.log(processedData);
             processedData.forEach((layer, index) => {
               sceneManager.value.addModel({
                 type: "triangleMesh",
@@ -194,7 +199,7 @@ export default {
                 options: {
                   color: getcolorbylayer(index),
                   scaleFactor: 0.005,
-                  rotationAngle: { x: -Math.PI / 2 },
+                  rotationAngle: { x: -Math.PI / 2 ,z:-Math.PI/2},
                 },
               });
             });

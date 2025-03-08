@@ -15,7 +15,7 @@ class SceneManager {
     this.animationId = null;
     this.dataLayers = new Map(); // 存储不同类型和层的数据
     this.loader = new GLTFLoader(); // 用于加载模型文件
- this.orbitControls = null;
+    this.orbitControls = null;
     this.firstPersonControls = null;
     this.transformControls = null;
     this.selectedObject = null; // 当前选中的对象
