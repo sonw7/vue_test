@@ -355,7 +355,6 @@ _createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
 
   // 应用缩放
   const scaleFactor = options.scaleFactor || { scaleX: 1, scaleY: 1, scaleZ: 1 };
-  console.debug(scaleFactor);
   mesh.scale.set(scaleFactor || 1, scaleFactor|| 1, scaleFactor|| 1);
 
   // 应用旋转
@@ -471,17 +470,17 @@ addMeshToScene(mesh, options = {}) {
   // 添加到指定图层
   this._addToLayer(layer, mesh);
   
-  // 如果提供了图层分类信息，并且有添加到图层列表的方法
-  if (options.layerCategory && Array.isArray(options.layerCategory)) {
-    // 如果有addToLayerList方法，调用它
-    if (typeof this.addToLayerList === 'function') {
-      this.addToLayerList(options.layerCategory);
-    }
-    // 或者，如果有layerNames引用，直接添加
-    else if (this.layerNames && Array.isArray(this.layerNames)) {
-      this.layerNames.push(options.layerCategory);
-    }
-  }
+  // // 如果提供了图层分类信息，并且有添加到图层列表的方法
+  // if (options.layerCategory && Array.isArray(options.layerCategory)) {
+  //   // 如果有addToLayerList方法，调用它
+  //   if (typeof this.addToLayerList === 'function') {
+  //     this.addToLayerList(options.layerCategory);
+  //   }
+  //   // 或者，如果有layerNames引用，直接添加
+  //   else if (this.layerNames && Array.isArray(this.layerNames)) {
+  //     this.layerNames.push(options.layerCategory);
+  //   }
+  // }
   
   // 返回图层名和对象引用
   return { layer, object: mesh };

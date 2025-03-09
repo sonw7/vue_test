@@ -186,7 +186,7 @@ onMounted(() => {
       })
       .then(text => {
         const processedData = processData(text);
-        console.log(processedData);
+        console.log("地层数量",processedData.length);
         
         // 添加第一个图层
         if (processedData.length > 0) {
@@ -247,7 +247,7 @@ onMounted(() => {
           // 重要：在所有地层加载完成后，再加载钻孔数据
           // 这样可以确保使用的是计算好的偏移量
           console.log("开始加载钻孔，使用的偏移量:", transformer.offset);
-          loadAndRenderDrills(sceneManager.value, transformer);
+          loadAndRenderDrills(sceneManager.value, transformer,layerNames.value);
         }
       })
       .catch(error => {

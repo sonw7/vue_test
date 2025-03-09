@@ -87,14 +87,17 @@ function getLeafNodeKeys(tree) {
 watch(
   () => props.layerList,
   (newLayers) => {
-    // treeData.value = initTreeData(newLayers);
+    console.debug("LayerControl 接收到新的图层列表:", newLayers);
+    console.debug("图层列表中的钻孔图层:", newLayers.filter(([group]) => group === '钻孔'));
     treeData.value = generateTree(newLayers);
-
-    // console.debug("tree数据",generateTree(newLayers))
-    // console.debug("tree数据",newLayers)
-    // console.debug('默认选中的节点 ID:', defaultCheckedKeys.value);
+    // 打印生成的树形结构
+    console.debug("生成的树形结构:", JSON.stringify(treeData.value));
+    // 获取叶子节点ID并设置为默认选中
+    const keys = getLeafNodeKeys(treeData.value);
+    console.debug("叶子节点ID:", keys);
+    defaultCheckedKeys.value = keys;
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
 
 // 处理选中状态变化，只返回叶子节点的 label

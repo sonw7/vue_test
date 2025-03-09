@@ -6,8 +6,22 @@ import { getcolorbylayer } from '../utils/getMeshColor';
  * @param {SceneManager} sceneManager - Three.js场景管理器
  * @param {CoordinateTransformer} transformer - 坐标转换器
  */
-async function loadAndRenderDrills(sceneManager, transformer) {
+/**
+ * 读取并渲染钻孔数据
+ * @param {SceneManager} sceneManager - Three.js场景管理器
+ * @param {CoordinateTransformer} transformer - 坐标转换器
+ * @param {Array} layerNames - 图层名称列表，用于更新UI
+ */
+async function loadAndRenderDrills(sceneManager, transformer, layerNames = null) {
   try {
+      // 检查并记录传入的转换器参数
+      console.log("钻孔渲染使用的转换器:", transformer);
+      if (transformer && transformer.offset) {
+        console.log("钻孔渲染使用的偏移量:", transformer.offset);
+      } else {
+        console.warn("警告：钻孔渲染没有收到有效的偏移量");
+      }
+      
     // 加载钻孔数据
     const response = await fetch('/drills.txt');
     if (!response.ok) {
@@ -16,43 +30,47 @@ async function loadAndRenderDrills(sceneManager, transformer) {
     
     const drills = await response.json();
     console.log(`加载了 ${drills.length} 个钻孔数据`);
-    console.log(drills);
-    // 创建颜色函数
-    console.debug(transformer.offset);
 
-    // 遍历钻孔数据并渲染
-    drills.forEach(drill => {
-        // console.debug(drill);
-      // 应用坐标转换
-    //   console.debug("???",transformer.offset);
-      const transformedPosition = transformer ? ({
-        x: transformer.offset.x,
-        y: transformer.offset.y,
-        z: transformer.offset.z
-      }) : { x: 0, y: 0, z: 0 };
-      // 渲染钻孔
+    // 创建颜色函数
+
+      // 遍历钻孔数据并渲染
+      drills.forEach(drill => {
+        const transformedPosition = transformer ? ({
+          x: transformer.offset.x,
+          y: transformer.offset.y,
+          z: transformer.offset.z
+        }) : { x: 0, y: 0, z: 0 };      
+             // 渲染钻孔
       const drillMesh = createDrillMesh(drill, {
-        position: transformedPosition,
-        scale: 1,
-        radius: 0.1,
-        showLabels: true,
-        labelScale: 0.8,
-        roughness: 0.6,
-        metalness: 0.1
+          position: transformedPosition,
+          scale: 1,
+          radius: 0.1,
+          showLabels: true,
+          labelScale: 0.8,
+          roughness: 0.6,
+          metalness: 0.1
+        });
+        
+        // 将钻孔添加到场景
+        if (drillMesh && sceneManager.addMeshToScene) {
+          const layerName = `${drill.name}`;
+          sceneManager.addMeshToScene(drillMesh, {
+            layer: layerName,
+            layerCategory: ['钻孔', layerName]
+          });
+          // 如果提供了layerNames引用，添加到图层列表
+          if (layerNames && Array.isArray(layerNames)) {
+            layerNames.push(['钻孔', layerName]);
+          }
+        }
       });
       
-      // 将钻孔添加到场景
-      if (drillMesh && sceneManager.addMeshToScene) {
-        sceneManager.addMeshToScene(drillMesh, {
-          layer: drill.name,
-          layerCategory: ['钻孔', drill.name]
-        });
-      }
-    });
-  } catch (error) {
-    console.error('加载或渲染钻孔数据时出错:', error);
+      console.log("钻孔渲染完成");
+      
+    } catch (error) {
+      console.error('加载或渲染钻孔数据时出错:', error);
+    }
   }
-}
 
 /**
  * 创建钻孔的3D模型
