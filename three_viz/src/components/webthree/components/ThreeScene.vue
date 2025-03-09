@@ -160,9 +160,9 @@ onMounted(() => {
         z: 0
       },
       scale: {
-        x: 0.005,
-        y: 0.005,
-        z: 0.005
+        x: 1,
+        y: 1,
+        z: 1
       },
       rotation: {
         x: -Math.PI / 2,
@@ -177,7 +177,7 @@ onMounted(() => {
     roadmodeltest(sceneManager.value.scene);
 
     // 地层渲染尝试（从文本文件加载）
-    fetch("/layer1.txt")
+    fetch("/layer.txt")
       .then(response => {
         if (!response.ok) {
           throw new Error("Network response was not ok");

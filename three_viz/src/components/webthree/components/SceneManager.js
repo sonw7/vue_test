@@ -355,7 +355,8 @@ _createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
 
   // 应用缩放
   const scaleFactor = options.scaleFactor || { scaleX: 1, scaleY: 1, scaleZ: 1 };
-  mesh.scale.set(scaleFactor.scaleX || 1, scaleFactor.scaleY || 1, scaleFactor.scaleZ || 1);
+  console.debug(scaleFactor);
+  mesh.scale.set(scaleFactor || 1, scaleFactor|| 1, scaleFactor|| 1);
 
   // 应用旋转
   const rotationAngle = options.rotationAngle || { x: 0, y: 0, z: 0 };
