@@ -408,7 +408,83 @@ _createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
       );
     });
   }
+/**
+ * 添加已创建的 mesh 到场景并应用变换
+ * @param {THREE.Object3D} mesh - 要添加的 Three.js 对象
+ * @param {Object} options - 变换选项
+ * @param {string} options.layer - 图层名称
+ * @param {Object} [options.position] - 位置 {x, y, z}
+ * @param {Object} [options.rotation] - 旋转（弧度） {x, y, z}
+ * @param {Object|number} [options.scale] - 缩放 {x, y, z} 或单一数值
+ * @param {Array} [options.layerCategory] - 图层分类 [分类名, 图层名]，用于图层控制面板
+ * @returns {Object} 包含图层名和对象的引用
+ */
+addMeshToScene(mesh, options = {}) {
+  if (!mesh) {
+    console.error('无效的 mesh 对象');
+    return null;
+  }
 
+  const layer = options.layer || 'default';
+  
+  // 应用位置（如果尚未应用）
+  if (options.position && (!mesh.userData.positionApplied)) {
+    mesh.position.set(
+      options.position.x || 0,
+      options.position.y || 0,
+      options.position.z || 0
+    );
+    mesh.userData.positionApplied = true;
+  }
+  
+  // 应用旋转（如果尚未应用）
+  if (options.rotation && (!mesh.userData.rotationApplied)) {
+    mesh.rotation.set(
+      options.rotation.x || 0,
+      options.rotation.y || 0,
+      options.rotation.z || 0
+    );
+    mesh.userData.rotationApplied = true;
+  }
+  
+  // 应用缩放（如果尚未应用）
+  if (options.scale !== undefined && (!mesh.userData.scaleApplied)) {
+    if (typeof options.scale === 'number') {
+      // 如果是单一数值，应用到所有轴
+      mesh.scale.set(options.scale, options.scale, options.scale);
+    } else {
+      // 如果是对象，分别应用到各轴
+      mesh.scale.set(
+        options.scale.x || 1,
+        options.scale.y || 1,
+        options.scale.z || 1
+      );
+    }
+    mesh.userData.scaleApplied = true;
+  }
+  
+  // 如果有材质和贴图URL，应用贴图
+  if (options.textureUrl && mesh.material) {
+    this.addTexture(mesh, options.textureUrl);
+  }
+  // 添加到指定图层
+  this._addToLayer(layer, mesh);
+  
+  // 如果提供了图层分类信息，并且有添加到图层列表的方法
+  if (options.layerCategory && Array.isArray(options.layerCategory)) {
+    // 如果有addToLayerList方法，调用它
+    if (typeof this.addToLayerList === 'function') {
+      this.addToLayerList(options.layerCategory);
+    }
+    // 或者，如果有layerNames引用，直接添加
+    else if (this.layerNames && Array.isArray(this.layerNames)) {
+      this.layerNames.push(options.layerCategory);
+    }
+  }
+  
+  // 返回图层名和对象引用
+  return { layer, object: mesh };
+}
 
   // 添加对象到指定层
   _addToLayer(layer, object) {

@@ -51,7 +51,7 @@ export default function roadmodeltest(scene) { // 添加 scene 参数
       
       //分部分渲染
       rockConfigs.forEach((config) => {
-        console.log(config);
+        // console.log(config);
         loadTextureAndCreateMesh(config, roadways);
       });
       
