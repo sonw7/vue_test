@@ -174,7 +174,7 @@ onMounted(() => {
     sceneTransformer.value = transformer;
 
     // 本地加载巷道模型
-    roadmodeltest(sceneManager.value.scene);
+    // roadmodeltest(sceneManager.value.scene);
 
     // 地层渲染尝试（从文本文件加载）
     fetch("/layer.txt")

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
-import { zuobiaozhou,zbz ,createCompass,createAxes} from '../utils/axesManage'
+import { createCompass,createAxes} from '../utils/axesManage'
 import { FirstPersonControls } from 'three/examples/jsm/controls/FirstPersonControls';
 import  {FontLoader}  from 'three/examples/jsm/loaders/FontLoader.js'
 import { boxUvCom } from '../utils/uvMappingUtils';

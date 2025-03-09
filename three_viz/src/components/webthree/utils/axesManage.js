@@ -158,44 +158,45 @@ function chidu(xmin, ymin, zmin, xmax, ymax, zmax ,scene,loader) {
         }
     }
 }
-function zbz(x,y,z,textsize,jiaodu,scene,loader){
+// function zbz(x,y,z,textsize,jiaodu,scene,loader){
 
-    loader.load( '/fonts/helvetiker_regular.typeface.json', function ( font ) {
+//     loader.load( '/fonts/helvetiker_regular.typeface.json', function ( font ) {
 
-        const geometrytext = new TextGeometry( "N", {
-            font: font,
-            size: textsize,
-            height: textsize/2,
-        } );
-        let materialstext1 = [
-            new THREE.MeshPhongMaterial( { color: 0x0000ff, flatShading: true } ), // front
-            new THREE.MeshPhongMaterial( { color: 0xff0000 } ) // side
-        ];
-        let textMesh = new THREE.Mesh(geometrytext, materialstext1);
+//         const geometrytext = new TextGeometry( "N", {
+//             font: font,
+//             size: textsize,
+//             height: textsize/2,
+//             depth: 1,
+//         } );
+//         let materialstext1 = [
+//             new THREE.MeshPhongMaterial( { color: 0x0000ff, flatShading: true } ), // front
+//             new THREE.MeshPhongMaterial( { color: 0xff0000 } ) // side
+//         ];
+//         let textMesh = new THREE.Mesh(geometrytext, materialstext1);
 
-        textMesh.position.set(y, z+15, x)
-        textMesh.updateMatrix();//更新位置
-        textMesh.matrixAutoUpdate=false;//禁止矩阵变动
-        // textMesh.rotation.y = -1.1
-        // 网格对象添加到场景中
-        scene.add(textMesh)
-    } );
+//         textMesh.position.set(y, z+15, x)
+//         textMesh.updateMatrix();//更新位置
+//         textMesh.matrixAutoUpdate=false;//禁止矩阵变动
+//         // textMesh.rotation.y = -1.1
+//         // 网格对象添加到场景中
+//         scene.add(textMesh)
+//     } );
 
 
-    const geometry = new THREE.ConeGeometry( 5, 20, 3 );
-    const material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
-    const cone = new THREE.Mesh( geometry, material );
-    cone.position.x=y;
-    cone.position.y=z;
-    cone.position.z=x;
-    cone.rotation.x=-Math.PI/2;
-    cone.rotation.z=jiaodu
-    cone.updateMatrix();
-    cone.matrixAutoUpdate = false;
-    scene.add( cone );
-    // console.log(cone )
+//     const geometry = new THREE.ConeGeometry( 5, 20, 3 );
+//     const material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+//     const cone = new THREE.Mesh( geometry, material );
+//     cone.position.x=y;
+//     cone.position.y=z;
+//     cone.position.z=x;
+//     cone.rotation.x=-Math.PI/2;
+//     cone.rotation.z=jiaodu
+//     cone.updateMatrix();
+//     cone.matrixAutoUpdate = false;
+//     scene.add( cone );
+//     // console.log(cone )
 
-}
+// }
 
 function createCompass(x,y,z,textsize,jiaodu,scene,loader){
 
@@ -205,6 +206,7 @@ function createCompass(x,y,z,textsize,jiaodu,scene,loader){
             font: font,
             size: textsize,
             height: textsize/2,
+            depth: 1,
         } );
         let materialstext1 = [
             new THREE.MeshPhongMaterial( { color: 0x0000ff, flatShading: true } ), // front
@@ -236,12 +238,13 @@ function createCompass(x,y,z,textsize,jiaodu,scene,loader){
 
 }
 function textChinese(text,x,y,z,size,rotationx,rotationy,rotationz,loader,scene){
-    loader.load("/fonts/FZYaoTi_Regular.json", function ( font ) {
+    loader.load("/fonts/helvetiker_regular.typeface.json", function ( font ) {
 
         const geometrytext = new TextGeometry( text, {
             font: font,
             size: size,
             height: size/2,
+            depth: 1,
             // curveSegments: 4,
             // bevelEnabled: true,
             // bevelThickness: 2,
@@ -273,9 +276,10 @@ function createTextMesh(text, position, rotation, font, color = 0x464444) {
         font: font,
         size: 6,
         height: 1,
+        depth: 1,
         curveSegments: 16,
-        bevelEnabled: true,
-        bevelThickness: 0.5,
+        bevelEnabled: false,
+        bevelThickness: 0.1,
         bevelSize: 0.3,
         bevelOffset: 0,
         bevelSegments: 10,
@@ -293,4 +297,4 @@ function createTextMesh(text, position, rotation, font, color = 0x464444) {
 
     return textMesh;
 }
-export {zuobiaozhou,zbz,createCompass,createAxes}
+export {zuobiaozhou,createCompass,createAxes}
