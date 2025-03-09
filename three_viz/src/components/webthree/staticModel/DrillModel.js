@@ -30,8 +30,9 @@ async function loadAndRenderDrills(sceneManager, transformer, layerNames = null)
     
     const drills = await response.json();
     console.log(`加载了 ${drills.length} 个钻孔数据`);
-
+    console.log("钻孔数据",drills);
     // 创建颜色函数
+    
 
       // 遍历钻孔数据并渲染
       drills.forEach(drill => {

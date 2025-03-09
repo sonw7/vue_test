@@ -187,7 +187,7 @@ onMounted(() => {
       .then(text => {
         const processedData = processData(text);
         console.log("地层数量",processedData.length);
-        
+        console.log("地层数据",processedData);
         // 添加第一个图层
         if (processedData.length > 0) {
           const firstLayerName = `Layer_0`;

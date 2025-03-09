@@ -28,7 +28,7 @@ class SceneManager {
       },
       firstPerson: {
         lookSpeed: 0.01,
-        movementSpeed: 0.1,
+        movementSpeed: 0.01,
         noFly: true,
         lookVertical: true,
       },
@@ -136,20 +136,26 @@ switchControl(controlType) {
 
 // 启用 OrbitControls
 // 启用 OrbitControls
+// 启用 OrbitControls
 _useOrbitControls() {
   this.currentControl = 'orbit';
   this.firstPersonControls.enabled = false;
   
-  // 如果有保存的相机位置，恢复它
-  if (this._savedCameraPosition) {
-    this.camera.position.copy(this._savedCameraPosition.position);
-    this.orbitControls.target.copy(this._savedCameraPosition.target);
+  // 如果有保存的相机状态，恢复它
+  if (this._savedCameraState) {
+    this.camera.position.copy(this._savedCameraState.position);
+    this.orbitControls.target.copy(this._savedCameraState.target);
+    
+    // 恢复相机的近裁面和远裁面
+    this.camera.near = this._savedCameraState.near;
+    this.camera.far = this._savedCameraState.far;
+    this.camera.updateProjectionMatrix(); // 重要：更新投影矩阵
   }
   
   this.orbitControls.enabled = true;
   this.orbitControls.update();
   
-  console.log('轨道控制器已启用');
+  console.log('轨道控制器已启用，相机近裁面距离恢复为:', this.camera.near);
 }
 
 // 启用 FirstPersonControls
@@ -157,21 +163,28 @@ _useFirstPersonControls() {
   this.currentControl = 'firstPerson';
   this.orbitControls.enabled = false;
   
-  // 保存当前相机位置，以便切换回轨道控制器时可以恢复
-  if (!this._savedCameraPosition) {
-    this._savedCameraPosition = {
+  // 保存当前相机位置和投影参数，以便切换回轨道控制器时可以恢复
+  if (!this._savedCameraState) {
+    this._savedCameraState = {
       position: this.camera.position.clone(),
-      target: this.orbitControls.target.clone()
+      target: this.orbitControls.target.clone(),
+      near: this.camera.near,
+      far: this.camera.far
     };
   }
   
   // 将相机重置到原点或指定的起始位置
-  const startPosition = { x: 0, y: 2, z: 0 }; // y=2 让相机略高于地面，像人眼高度
+  const startPosition = { x: 0.6, y: -1.25, z: 0 }; // y=2 让相机略高于地面，像人眼高度
   this.camera.position.set(startPosition.x, startPosition.y, startPosition.z);
   
   // 设置相机朝向 (例如，朝向z轴正方向)
   const lookDirection = { x: 0, y: 2, z: 10 };
   this.camera.lookAt(lookDirection.x, lookDirection.y, lookDirection.z);
+  
+  // 调整相机的近裁面和远裁面
+  this.camera.near = 0.01; // 设置非常近的近裁面，可以看到很近的物体
+  this.camera.far = 1000;  // 根据场景大小调整远裁面
+  this.camera.updateProjectionMatrix(); // 重要：更新投影矩阵
   
   // 确保应用当前的参数设置
   this.firstPersonControls.lookSpeed = this.controlParams.firstPerson.lookSpeed;
@@ -184,6 +197,7 @@ _useFirstPersonControls() {
   this.firstPersonControls.enabled = true;
   
   console.log('第一人称控制器已启用，相机位置重置为:', startPosition,
+              '近裁面距离:', this.camera.near,
               '旋转速度:', this.firstPersonControls.lookSpeed, 
               '移动速度:', this.firstPersonControls.movementSpeed);
 }

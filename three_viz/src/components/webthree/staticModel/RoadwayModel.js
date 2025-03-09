@@ -87,7 +87,7 @@ function loadTextureAndCreateMesh(config, roadways) {
     (texture) => {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(2000, 2000);
+      texture.repeat.set(200, 200);
 
       //绘制mesh
       const Geometry = new THREE.BufferGeometry();
