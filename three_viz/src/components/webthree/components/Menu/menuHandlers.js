@@ -13,7 +13,8 @@ export function handleMenuChange({ key, value }, sceneManager) {
   export function handleMenuAction(key, sceneManager) {
     console.log(`触发菜单动作:`, key);
   
-    if (key === "resetCamera") {
+    if (key === "resetView") {
+      console.log("重置相机")
       sceneManager.resetCamera();
     }
   }

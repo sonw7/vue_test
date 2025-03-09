@@ -28,7 +28,7 @@ class SceneManager {
       },
       firstPerson: {
         lookSpeed: 0.01,
-        movementSpeed: 5,
+        movementSpeed: 0.1,
         noFly: true,
         lookVertical: true,
       },
@@ -135,30 +135,78 @@ switchControl(controlType) {
 }
 
 // 启用 OrbitControls
+// 启用 OrbitControls
 _useOrbitControls() {
   this.currentControl = 'orbit';
   this.firstPersonControls.enabled = false;
+  
+  // 如果有保存的相机位置，恢复它
+  if (this._savedCameraPosition) {
+    this.camera.position.copy(this._savedCameraPosition.position);
+    this.orbitControls.target.copy(this._savedCameraPosition.target);
+  }
+  
   this.orbitControls.enabled = true;
+  this.orbitControls.update();
+  
+  console.log('轨道控制器已启用');
 }
 
 // 启用 FirstPersonControls
 _useFirstPersonControls() {
   this.currentControl = 'firstPerson';
   this.orbitControls.enabled = false;
+  
+  // 保存当前相机位置，以便切换回轨道控制器时可以恢复
+  if (!this._savedCameraPosition) {
+    this._savedCameraPosition = {
+      position: this.camera.position.clone(),
+      target: this.orbitControls.target.clone()
+    };
+  }
+  
+  // 将相机重置到原点或指定的起始位置
+  const startPosition = { x: 0, y: 2, z: 0 }; // y=2 让相机略高于地面，像人眼高度
+  this.camera.position.set(startPosition.x, startPosition.y, startPosition.z);
+  
+  // 设置相机朝向 (例如，朝向z轴正方向)
+  const lookDirection = { x: 0, y: 2, z: 10 };
+  this.camera.lookAt(lookDirection.x, lookDirection.y, lookDirection.z);
+  
+  // 确保应用当前的参数设置
+  this.firstPersonControls.lookSpeed = this.controlParams.firstPerson.lookSpeed;
+  this.firstPersonControls.movementSpeed = this.controlParams.firstPerson.movementSpeed;
+  
+  // 重新设置第一人称控制器的目标点
+  this.firstPersonControls.lookAt(lookDirection.x, lookDirection.y, lookDirection.z);
+  
+  // 启用控制器
   this.firstPersonControls.enabled = true;
+  
+  console.log('第一人称控制器已启用，相机位置重置为:', startPosition,
+              '旋转速度:', this.firstPersonControls.lookSpeed, 
+              '移动速度:', this.firstPersonControls.movementSpeed);
 }
- // 更新控制器参数
- updateControlParams(controlType, params) {
+
+// 更新控制器参数
+updateControlParams(controlType, params) {
   if (controlType === 'orbit' && this.orbitControls) {
     Object.assign(this.controlParams.orbit, params);
     this.orbitControls.enableDamping = this.controlParams.orbit.enableDamping;
     this.orbitControls.dampingFactor = this.controlParams.orbit.dampingFactor;
   } else if (controlType === 'firstPerson' && this.firstPersonControls) {
+    // 更新参数对象
     Object.assign(this.controlParams.firstPerson, params);
+    
+    // 应用参数到控制器
     this.firstPersonControls.lookSpeed = this.controlParams.firstPerson.lookSpeed;
     this.firstPersonControls.movementSpeed = this.controlParams.firstPerson.movementSpeed;
     this.firstPersonControls.noFly = this.controlParams.firstPerson.noFly;
     this.firstPersonControls.lookVertical = this.controlParams.firstPerson.lookVertical;
+    
+    console.log('第一人称控制器参数已更新:', 
+                '旋转速度:', this.firstPersonControls.lookSpeed, 
+                '移动速度:', this.firstPersonControls.movementSpeed);
   } else {
     console.warn('Unsupported control type or invalid parameters:', controlType, params);
   }
@@ -630,6 +678,51 @@ addMeshToScene(mesh, options = {}) {
     this.camera = null;
     this.renderer = null;
   }
+  /**
+ * 重置相机位置和控制器
+ * @param {Object} options - 重置选项
+ * @param {Object} [options.position] - 相机位置 {x, y, z}
+ * @param {Object} [options.lookAt] - 相机朝向 {x, y, z}
+ * @param {boolean} [options.resetControls] - 是否重置控制器状态
+ */
+resetCamera(options = {}) {
+  // 默认相机位置和朝向
+  const defaultPosition = { x: 65, y: 30, z: 10 };
+  const defaultLookAt = { x: 0, y: 0, z: 0 };
+  
+  // 使用提供的选项或默认值
+  const position = options.position || defaultPosition;
+  const lookAt = options.lookAt || defaultLookAt;
+  const resetControls = options.resetControls !== undefined ? options.resetControls : true;
+  
+  // 重置相机位置
+  this.camera.position.set(position.x, position.y, position.z);
+  
+  // 重置相机朝向
+  this.camera.lookAt(lookAt.x, lookAt.y, lookAt.z);
+  
+  // 如果需要，重置控制器
+  if (resetControls) {
+    if (this.currentControl === 'orbit' && this.orbitControls) {
+      // 重置 OrbitControls
+      this.orbitControls.target.set(lookAt.x, lookAt.y, lookAt.z);
+      this.orbitControls.update();
+    } else if (this.currentControl === 'firstPerson' && this.firstPersonControls) {
+      // 重置 FirstPersonControls
+      this.firstPersonControls.lookAt(lookAt.x, lookAt.y, lookAt.z);
+    }
+  }
+  
+  // 更新变换控制器（如果有选中对象）
+  if (this.transformControls && this.selectedObject) {
+    this.transformControls.update();
+  }
+  
+  // 立即渲染一次，以显示新的视图
+  this.render();
+  
+  console.log('Camera reset to position:', position, 'looking at:', lookAt);
+}
 }
 
 export default SceneManager;
