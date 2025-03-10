@@ -146,6 +146,7 @@ export default {
     // 添加模型并应用全局偏移
 // 添加模型并应用全局偏移
 // 修改 ThreeScene.vue
+// 修改 ThreeScene.vue 中的 onMounted 方法
 onMounted(() => {
   if (sceneContainer.value) {
     const manager = new SceneManager(sceneContainer.value);
@@ -174,9 +175,9 @@ onMounted(() => {
     sceneTransformer.value = transformer;
 
     // 本地加载巷道模型
-    // roadmodeltest(sceneManager.value.scene);
+    roadmodeltest(sceneManager.value, layerNames.value);
 
-    // 地层渲染尝试（从文本文件加载）
+    // 首先加载并处理地层数据
     fetch("/layer.txt")
       .then(response => {
         if (!response.ok) {
@@ -186,8 +187,9 @@ onMounted(() => {
       })
       .then(text => {
         const processedData = processData(text);
-        console.log("地层数量",processedData.length);
-        console.log("地层数据",processedData);
+        console.log("地层数量", processedData.length);
+        console.log("地层数据", processedData);
+        
         // 添加第一个图层
         if (processedData.length > 0) {
           const firstLayerName = `Layer_0`;
@@ -203,8 +205,9 @@ onMounted(() => {
             options: {
               color: getcolorbylayer(0),
               scaleFactor: transformer.scale.x,
-              rotationAngle: { x:transformer.rotation.x, z: transformer.rotation.z },
+              rotationAngle: { x: transformer.rotation.x, z: transformer.rotation.z },
               position: { x: 0, y: 0, z: 0 },
+              textureUrl: "/textures/door/01.bmp"
             },
           });
           
@@ -236,7 +239,7 @@ onMounted(() => {
               options: {
                 color: getcolorbylayer(i),
                 scaleFactor: transformer.scale.x,
-                rotationAngle: { x:transformer.rotation.x, z: transformer.rotation.z },
+                rotationAngle: { x: transformer.rotation.x, z: transformer.rotation.z },
                 position: transformer.offset,
               },
             });
@@ -245,13 +248,62 @@ onMounted(() => {
           }
           
           // 重要：在所有地层加载完成后，再加载钻孔数据
-          // 这样可以确保使用的是计算好的偏移量
           console.log("开始加载钻孔，使用的偏移量:", transformer.offset);
-          loadAndRenderDrills(sceneManager.value, transformer,layerNames.value);
+          loadAndRenderDrills(sceneManager.value, transformer, layerNames.value);
+          
+          // 在地层处理完成后，再加载断层数据
+          // 这样可以确保使用正确的偏移量
+          return fetch("/fault.txt");
+        }
+        
+        return Promise.reject("No layer data found");
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        return response.text();
+      })
+      .then(text => {
+        const processedData = processData(text);
+        console.log("断层数量", processedData.length);
+        console.log("断层数据", processedData);
+        console.log("加载断层使用的偏移量:", sceneTransformer.value.offset);
+        
+        // 添加断层图层，使用已更新的偏移量
+        if (processedData.length > 0) {
+          for (let i = 0; i < processedData.length; i++) {
+            const layerName = `Fault_${i}`;
+            
+            // 使用更新后的transformer应用到新模型
+            sceneManager.value.addModel({
+              type: "triangleMesh",
+              data: {
+                vertices: processedData[i].vertices,
+                indices: processedData[i].indices,
+              },
+              layer: layerName,
+              options: {
+                color: "#ec6a5d",
+                scaleFactor: sceneTransformer.value.scale.x,
+                rotationAngle: { 
+                  x: sceneTransformer.value.rotation.x, 
+                  z: sceneTransformer.value.rotation.z
+                },
+                position: {
+                  x: sceneTransformer.value.offset.x*0.392,
+                  y: sceneTransformer.value.offset.y,
+                  z: sceneTransformer.value.offset.z*1.75
+                },
+              },
+            });
+            
+            layerNames.value.push(["断层", layerName]);
+          }
         }
       })
       .catch(error => {
-        console.error("Error loading the text file:", error);
+        console.error("Error loading and processing data:", error);
       });
 
     // 监听窗口大小变化，更新画布尺寸
