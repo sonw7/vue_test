@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // 修改导入方式，使用 fetch 加载 JSON 文件
-export default function roadmodeltest(scene) { // 添加 scene 参数
+export default function roadmodeltest(SceneManager,layerNames) { // 添加 scene 参数
   let roadways = new THREE.Object3D();
   
   // 使用 fetch 加载 JSON 文件
@@ -54,8 +54,8 @@ export default function roadmodeltest(scene) { // 添加 scene 参数
         // console.log(config);
         loadTextureAndCreateMesh(config, roadways);
       });
-      
-      scene.add(roadways);
+      SceneManager._addToLayer("巷道", roadways);
+      layerNames.push(["巷道"]);
     })
     .catch(error => console.error('Error loading roadway data:', error));
 }
