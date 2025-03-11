@@ -21,6 +21,8 @@ class SceneManager {
     this.selectedObject = null; // 当前选中的对象
     this.currentControl = 'orbit'; // 当前使用的控制器类型
     this.fontLoader = new FontLoader();
+    this.textureCache = new Map(); // 用于缓存已加载的纹理
+
     this.controlParams = {
       orbit: {
         enableDamping: true,
@@ -395,6 +397,7 @@ _createIndexedMesh({ vertices, indices, index = 0 }, {
 }
 
 // 创建三角面网格
+// 创建三角面网格
 _createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
   const geometry = new THREE.BufferGeometry();
   // 设置顶点位置
@@ -408,11 +411,23 @@ _createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
   geometry.computeVertexNormals();
   geometry.computeBoundingBox();
 
-  // 创建材质
-  const material = new THREE.MeshBasicMaterial({
-    color: options.color || 0xffffff, // 默认白色
-    side: THREE.DoubleSide, // 双面渲染
-  });
+  // 创建材质 - 根据是否有纹理来决定材质属性
+  let material;
+  if (options.textureUrl) {
+    // 如果有纹理，创建不影响纹理颜色的材质
+    material = new THREE.MeshBasicMaterial({
+      color: 0xffffff, // 白色不会影响纹理颜色
+      side: THREE.DoubleSide, // 双面渲染
+      map: null // 纹理将在 addTexture 方法中加载和设置
+    });
+  } else {
+    // 如果没有纹理，使用指定颜色
+    material = new THREE.MeshBasicMaterial({
+      color: options.color || 0xffffff, // 默认白色
+      side: THREE.DoubleSide, // 双面渲染
+    });
+  }
+  
   const mesh = new THREE.Mesh(geometry, material);
 
   // 应用缩放
@@ -430,6 +445,7 @@ _createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
   // 设置渲染顺序
   mesh.renderOrder = 100 - index;
   
+  // 如果有纹理URL，添加纹理
   if (options.textureUrl) {
     this.addTexture(mesh, options.textureUrl);
   }
@@ -610,10 +626,29 @@ addMeshToScene(mesh, options = {}) {
     return drillMeshes;
   }
   addTexture(mesh, textureUrl) {
+    // 在 SceneManager 类中添加纹理缓存
+
+
+// 修改 addTexture 方法
+  // 检查缓存中是否已有该纹理
+  if (this.textureCache.has(textureUrl)) {
+    const texture = this.textureCache.get(textureUrl);
+    if (mesh.material.map) {
+      mesh.material.map.dispose();
+    }
+    mesh.material.map = texture;
+    mesh.material.needsUpdate = true;
+    return;
+  }
+  
+
+
     const textureLoader = new THREE.TextureLoader();
   
     // 加载新贴图
     textureLoader.load(textureUrl, (texture) => {
+      this.textureCache.set(textureUrl, texture);
+
       // 如果需要计算 UV
       if (boxUvCom && typeof boxUvCom === "function") {
         // 获取顶点位置和法向量

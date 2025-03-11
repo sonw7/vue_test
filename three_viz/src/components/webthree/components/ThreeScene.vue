@@ -26,6 +26,7 @@ import { getcolorbylayer } from '../utils/getMeshColor';
 import CoordinateTransformer from '../utils/CoordinateTransformer';
 import roadmodeltest from "../staticModel/RoadwayModel";
 import * as THREE from 'three';
+
 // import {
 //   getFaultModel,
 //   getDrillsModel,
@@ -207,7 +208,7 @@ onMounted(() => {
               scaleFactor: transformer.scale.x,
               rotationAngle: { x: transformer.rotation.x, z: transformer.rotation.z },
               position: { x: 0, y: 0, z: 0 },
-              textureUrl: "/textures/door/01.bmp"
+              textureUrl: getTextureUrl(0)
             },
           });
           
@@ -241,6 +242,8 @@ onMounted(() => {
                 scaleFactor: transformer.scale.x,
                 rotationAngle: { x: transformer.rotation.x, z: transformer.rotation.z },
                 position: transformer.offset,
+                textureUrl: getTextureUrl(i),
+                textureRepeat: 1000
               },
             });
             

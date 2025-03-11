@@ -1,15 +1,39 @@
 import * as THREE from 'three';
 export function getTextureUrl(index) {
     // 贴图文件目录
-    const basePath = "/";
+    const basePath = "/textures/door/";
     // 文件名映射规则（根据索引）
     const fileMappings = {
-      0: "3.bmp",
-      1: "4_奥灰峰峰组.bmp",
-      2: "5_奥灰磁耳组.bmp",
-      3: "6_奥灰马家沟.bmp",
-      4: "8_基岩闪长岩.bmp",
-      // 添加更多映射...
+      0: "01.bmp",
+      1: "07.bmp",
+      2: "03.bmp",
+      3: "04.bmp",
+      4: "05.bmp",
+      5: "06.bmp",
+      6: "01.bmp",
+      7: "02.bmp",
+      8: "03.bmp",
+      9: "04.bmp",
+      10: "05.bmp",
+      11: "06.bmp",
+      12: "01.bmp",
+      13: "02.bmp",
+      14: "03.bmp",
+      15: "04.bmp",
+      16: "05.bmp",
+      17: "06.bmp",
+      18: "01.bmp",
+      19: "02.bmp",
+      20: "03.bmp",
+      21: "04.bmp",
+      22: "05.bmp",
+      23: "06.bmp",
+      24: "01.bmp",
+      25: "02.bmp",
+      26: "03.bmp",
+      27: "04.bmp",
+      28: "05.bmp",
+      29: "06.bmp",
     };
   
     // 获取文件名
@@ -93,3 +117,4 @@ export function boxUvCom(ovDate,oNormal,max,min,triNum){
     return Uvs;
 
 }
+
