@@ -2,6 +2,7 @@ export function getcolorbylayer(layer,s) {
     let color;
     switch (layer) {
         case  0:
+            //第四系
             if(s===0)
                 color = '0xe5cf00';
             else
@@ -9,102 +10,118 @@ export function getcolorbylayer(layer,s) {
             //color = '#ffd700';
             break;
         case  1:
+            //隔水层1
             if(s===0)
-                color = '0x0000FF';
+                color = '0x2a47e3';
             else
-                color = '#0000ff';
+                color = '#2a47e3';
             break;
         case 2:
+            //第四系底
             if(s===0)
                 color = '0xFF0000';
             else
-                color = '#FF0000';
+                color = '#ea3323';
             break;
         case  3:
+            //隔水层2
             if(s==0)
-                color = '0xEE00FF';
+                color = '0x2a47e3';
             else
-                color = '#EE00FF';
+                color = '#2a47e3';
             break;
         case  4:
+            //石盒子
             if(s==0)
                 color = '0x8500FF';
             else
                 //color = '#8500FF';
-                color = '#00ff3f';
+                color = '#4fad5b';
             break;
         case  5:
+            //隔水层3
             if(s==0)
                 color = '0x00ffb0';
             else
-                color = '#00ffb0';
+                color = '#5fcf98';
             break;
         case  6:
+            //大煤层
             if(s==0)
                 color = '0xaf4c00';
             else
-                color = '#af4c00';
+                color = '#4fad5b';
             break;
         case  7:
+            //2煤
             if(s==0)
                 color = '0xff1400';
             else
-                color = '#ff1400';
+                color = '#ffffff';
 
             break;
         case  8:
+            //隔水层4
             if(s==0)
                 color = '0x008B8B';
             else
-                color = '#008B8B';
+                color = '#5fcf98';
             break;
         case  9:
+            //野青
             if(s==0)
                 color = '0xff5c00';
             else
-                color = '#ff5c00';
+                color = '#68349a';
             break;
         case  10:
+            //隔水层5
             if(s==0)
                 color = '0x7a7500';
             else
-                color = '#7a7500';
+                color = '#da7842';
             break;
         case  11:
+            //5煤
             if(s==0)
                 color = '0x8d00bc';
             else
-                color = '#8d00bc';
+                color = '#ffffff';
             break;
         case  12:
+            //隔水层6
             if(s==0)
                 color = '0xff00c4';
             else
-                color = '#ff00c4';
+                color = '#da7842';
             break;
         case  13:
+            //伏青色
             if(s==0)
                 color = '0xc1ec00';
             else
-                color = '#c1ec00';
+                color = '#68349a';
             break;
         case  14:
+            //隔水层7
             if(s==0)
                 color = '0x00b2ff';
             else
-                color = '#00b2ff';
+                color = '#5fcf98';
             break;
         case  15:
+            //大青
             if(s==0)
                 color = '0x806b00';
             else
-                color = '#806b00';
+                color = '#bfbfbf';
             break;
         case  16:
+            //隔水层8
             if(s==0)
                 color ='0x9b004d';
             else
-                color = '#9b004d';
+                color = '#da7842';
             break;
         case  17:
             if(s==0)
@@ -113,40 +130,46 @@ export function getcolorbylayer(layer,s) {
                 color = '#4B0082';
             break;
         case  18:
+            //9煤
             if(s==0)
                 color = '0x777246';
             else
-                color = '#618cf8';
+                color = '#ffffff';
             break;
         case  19:
+            //隔水层9
             if(s==0)
                 color = '0xdac617';
             else
-                color = '#00ffb0';
+                color = '#5fcf98';
             break;
         case 20:
+            //本溪组
             if(s==0)
                 color = '0xF08080';
             else
-                color = '#F08080';
+                color = '#bfbfbf';
             break;
         case 21:
+            //隔水层10
             if(s==0)
                 color = '0xFAFAD2';
             else
-                color = '#00a65b';
+                color = '#da7842';
             break;
         case 22:
+            //奥掏
             if(s==0)
                 color ='0xffcc00';
             else
-                color = '#ffcc00';
+                color = '#68349a';
             break;
         case 23:
+            //奥灰顶
             if(s==0)
                 color = '0x48D1CC';
             else
-                color = '#48D1CC';
+                color = '#8574da';
             break;
         case 24:
             if(s==0)

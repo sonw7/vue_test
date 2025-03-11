@@ -416,7 +416,7 @@ _createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
   if (options.textureUrl) {
     // 如果有纹理，创建不影响纹理颜色的材质
     material = new THREE.MeshBasicMaterial({
-      color: 0xffffff, // 白色不会影响纹理颜色
+      color: options.color || 0xd4d6db, // 白色不会影响纹理颜色
       side: THREE.DoubleSide, // 双面渲染
       map: null // 纹理将在 addTexture 方法中加载和设置
     });
@@ -447,7 +447,7 @@ _createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
   
   // 如果有纹理URL，添加纹理
   if (options.textureUrl) {
-    this.addTexture(mesh, options.textureUrl);
+    this.addTexture(mesh, options.textureUrl,options.textureRepeat);
   }
   
   return mesh;
@@ -625,7 +625,7 @@ addMeshToScene(mesh, options = {}) {
     // 返回所有生成的网格（便于后续控制）
     return drillMeshes;
   }
-  addTexture(mesh, textureUrl) {
+  addTexture(mesh, textureUrl,textureRepeat) {
     // 在 SceneManager 类中添加纹理缓存
 
 
@@ -689,7 +689,7 @@ addMeshToScene(mesh, options = {}) {
       mesh.material.needsUpdate = true; // 确保更新材质
   
       // 可选：设置纹理属性
-      texture.repeat.set(20,20)
+      texture.repeat.set(textureRepeat,textureRepeat)
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
       // texture.anisotropy = mesh.material.map.anisotropy || 16; // 启用各向异性过滤

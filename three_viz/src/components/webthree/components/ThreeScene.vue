@@ -40,6 +40,7 @@ import { handleMenuChange, handleMenuAction } from "./Menu/menuHandlers";
 import { toggleLayerVisibility } from "../utils/layerVisibility";
 import { getTextureUrl } from '../utils/uvMappingUtils';
 import { loadAndRenderDrills } from "../staticModel/DrillModel";
+import { getLayerName } from '../view_util/layerUtils';
 export default {
   name: "ThreeScene",
   components: {
@@ -193,7 +194,7 @@ onMounted(() => {
         
         // 添加第一个图层
         if (processedData.length > 0) {
-          const firstLayerName = `Layer_0`;
+          const firstLayerName = getLayerName(0);
           
           // 添加第一个图层
           sceneManager.value.addModel({
@@ -208,7 +209,8 @@ onMounted(() => {
               scaleFactor: transformer.scale.x,
               rotationAngle: { x: transformer.rotation.x, z: transformer.rotation.z },
               position: { x: 0, y: 0, z: 0 },
-              textureUrl: getTextureUrl(0)
+              textureUrl: getTextureUrl(0),
+              textureRepeat: 50
             },
           });
           
@@ -227,7 +229,10 @@ onMounted(() => {
           
           // 添加其余图层，应用相同的偏移
           for (let i = 1; i < processedData.length; i++) {
-            const layerName = `Layer_${i}`;
+            if(i==17){
+              continue;
+            }
+            const layerName = getLayerName(i);
             
             // 使用更新后的transformer应用到新模型
             sceneManager.value.addModel({
@@ -243,7 +248,7 @@ onMounted(() => {
                 rotationAngle: { x: transformer.rotation.x, z: transformer.rotation.z },
                 position: transformer.offset,
                 textureUrl: getTextureUrl(i),
-                textureRepeat: 1000
+                textureRepeat: 100
               },
             });
             
@@ -294,9 +299,9 @@ onMounted(() => {
                   z: sceneTransformer.value.rotation.z
                 },
                 position: {
-                  x: sceneTransformer.value.offset.x*0.392,
+                  x: sceneTransformer.value.offset.x*0.388,
                   y: sceneTransformer.value.offset.y,
-                  z: sceneTransformer.value.offset.z*1.75
+                  z: sceneTransformer.value.offset.z*1.745
                 },
               },
             });
