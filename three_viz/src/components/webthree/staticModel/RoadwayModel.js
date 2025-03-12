@@ -66,19 +66,19 @@ function loadTextureAndCreateMesh(config, roadways) {
 
   switch (config.rockType) {
     case '1':
-      texturePath = '/textures/door/444.bmp';
+      texturePath = '/textures/door/含水层.bmp';
       break;
     case '2':
-      texturePath = '/textures/door/01.bmp';
+      texturePath = '/textures/door/隔水层.bmp';
       break;
     case '3':
-      texturePath = '/textures/door/02.bmp';
+      texturePath = '/textures/door/03.bmp';
       break;
     case '4':
-      texturePath = '/textures/door/01.bmp';
+      texturePath = '/textures/door/04.bmp';
       break;
     default:
-      texturePath = '/textures/door/01.bmp';
+      texturePath = '/textures/door/05.bmp';
       break;
   }
 
