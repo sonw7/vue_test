@@ -41,11 +41,44 @@ export const menuItems = [
     //   type: "button",
     //   label: "重置相机",
     // },
+    {
+      key: "layerDistanceCalculation",
+      type: "group",
+      label: "地层间距计算",
+      children: [
+        {
+          key: "sourceLayer",
+          type: "select",
+          label: "源地层",
+          options: [],
+          value: ""
+        },
+        {
+          key: "targetLayer",
+          type: "select",
+          label: "目标地层",
+          options: [],
+          value: ""
+        },
+        {
+          key: "calculateDistance",
+          type: "button",
+          label: "计算间距",
+        },
+        {
+          key: "resetLayers",
+          type: "button",
+          label: "重置地层",
+        }
+      ]
+    }
   ];
   
   export const menuDefaultValues = {
     controlType: "orbit",
     moveSpeed: 5,
     lookSpeed: 0.1,
+    sourceLayer: "",
+    targetLayer: "",
   };
   

@@ -8,12 +8,88 @@
       </button>
     </div>
     <div v-if="!isCollapsed" class="menu-content">
+      <!-- 遍历所有菜单项 -->
       <div v-for="(item, index) in items" :key="index" class="menu-item">
+        <!-- 分组菜单 -->
+        <div v-if="item.type === 'group'" class="menu-group">
+          <div class="group-header" @click="toggleGroup(item)">
+            <h4>{{ item.label }}</h4>
+            <span class="group-toggle" :class="{ 'group-open': isGroupOpen(item) }">▶</span>
+          </div>
+          <div v-if="isGroupOpen(item)" class="group-content">
+            <!-- 递归处理子菜单项 -->
+            <div v-for="(child, childIndex) in item.children" :key="`${index}-${childIndex}`" class="menu-item">
+              <!-- 下拉框 -->
+              <div v-if="child.type === 'select'" class="select-wrapper">
+                <label :for="`menu-item-${index}-${childIndex}`">{{ child.label }}</label>
+                <select
+                  :id="`menu-item-${index}-${childIndex}`"
+                  :data-key="child.key"
+                  v-model="localValues[child.key]"
+                  @change="emitChange(child.key)"
+                  class="styled-select"
+                >
+                  <option
+                    v-for="(option, idx) in child.options"
+                    :key="idx"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+              
+              <!-- 按钮 -->
+              <button
+                v-else-if="child.type === 'button'"
+                @click="emitAction(child.key)"
+                class="action-button"
+              >
+                {{ child.label }}
+              </button>
+              
+              <!-- 开关 -->
+              <div v-else-if="child.type === 'switch'" class="switch-wrapper">
+                <label :for="`menu-item-${index}-${childIndex}`">
+                  <input
+                    type="checkbox"
+                    :id="`menu-item-${index}-${childIndex}`"
+                    v-model="localValues[child.key]"
+                    @change="emitChange(child.key)"
+                  />
+                  <span class="custom-checkbox"></span>
+                  {{ child.label }}
+                </label>
+              </div>
+              
+              <!-- 滑块 -->
+              <div v-else-if="child.type === 'slider'" class="slider-wrapper">
+                <div class="slider-header">
+                  <label :for="`menu-item-${index}-${childIndex}`">{{ child.label }}</label>
+                  <span class="slider-value">{{ localValues[child.key].toFixed(child.decimal || 1) }}</span>
+                </div>
+                <input
+                  type="range"
+                  :id="`menu-item-${index}-${childIndex}`"
+                  v-model.number="localValues[child.key]"
+                  :min="child.min"
+                  :max="child.max"
+                  :step="child.step"
+                  @input="emitChange(child.key)"
+                  class="styled-slider"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 非分组菜单项 (保留原有代码) -->
         <!-- 下拉框 -->
-        <div v-if="item.type === 'select'" class="select-wrapper">
+        <div v-else-if="item.type === 'select'" class="select-wrapper">
           <label :for="'menu-item-' + index">{{ item.label }}</label>
           <select
             :id="'menu-item-' + index"
+            :data-key="item.key"
             v-model="localValues[item.key]"
             @change="emitChange(item.key)"
             class="styled-select"
@@ -27,7 +103,7 @@
             </option>
           </select>
         </div>
-  
+    
         <!-- 按钮 -->
         <button
           v-else-if="item.type === 'button'"
@@ -36,7 +112,7 @@
         >
           {{ item.label }}
         </button>
-  
+    
         <!-- 开关 -->
         <div v-else-if="item.type === 'switch'" class="switch-wrapper">
           <label :for="'menu-item-' + index">
@@ -50,7 +126,7 @@
             {{ item.label }}
           </label>
         </div>
-  
+    
         <!-- 滑块 -->
         <div v-else-if="item.type === 'slider'" class="slider-wrapper">
           <div class="slider-header">
@@ -74,6 +150,8 @@
 </template>
   
 <script>
+import { ref, reactive, watch } from 'vue';
+
 export default {
   name: "Menu",
   props: {
@@ -90,35 +168,64 @@ export default {
       default: () => ({}),
     },
   },
-  data() {
-    return {
-      isCollapsed: false, // 菜单是否收缩
-      localValues: { ...this.values }, // 本地存储菜单的初始值
-    };
-  },
-  watch: {
-    // 监听外部传入的 values 变化
-    values: {
-      handler(newValues) {
-        this.localValues = { ...newValues };
-      },
-      deep: true
+  setup(props, { emit }) {
+    const isCollapsed = ref(false);
+    const localValues = reactive({ ...props.values });
+    const openGroups = reactive({});
+    
+    // 初始化所有分组为展开状态
+    function initGroups() {
+      props.items.forEach(item => {
+        if (item.type === 'group') {
+          openGroups[item.key] = true;
+        }
+      });
     }
-  },
-  methods: {
+    
+    // 监听外部传入的 values 变化
+    watch(() => props.values, (newValues) => {
+      Object.assign(localValues, newValues);
+    }, { deep: true });
+    
     // 切换菜单的展开/收缩状态
-    toggleMenu() {
-      this.isCollapsed = !this.isCollapsed;
-    },
+    function toggleMenu() {
+      isCollapsed.value = !isCollapsed.value;
+    }
+    
+    // 切换分组的展开/收缩状态
+    function toggleGroup(group) {
+      openGroups[group.key] = !openGroups[group.key];
+    }
+    
+    // 检查分组是否展开
+    function isGroupOpen(group) {
+      return openGroups[group.key] !== false;
+    }
+    
     // 触发父组件的 change 事件
-    emitChange(key) {
-      this.$emit("change", { key, value: this.localValues[key] });
-    },
+    function emitChange(key) {
+      emit("change", { key, value: localValues[key] });
+    }
+    
     // 触发父组件的 action 事件
-    emitAction(key) {
-      this.$emit("action", key);
-    },
-  },
+    function emitAction(key) {
+      emit("action", key);
+    }
+    
+    // 初始化分组状态
+    initGroups();
+    
+    return {
+      isCollapsed,
+      localValues,
+      openGroups,
+      toggleMenu,
+      toggleGroup,
+      isGroupOpen,
+      emitChange,
+      emitAction
+    };
+  }
 };
 </script>
   
@@ -188,6 +295,54 @@ export default {
   font-weight: 500;
   color: #555;
   margin-bottom: 6px;
+}
+
+/* 分组相关的样式 */
+.menu-group {
+  margin-bottom: 15px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background-color: rgba(0, 0, 0, 0.03);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.group-header:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.group-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.group-toggle {
+  font-size: 12px;
+  transition: transform 0.3s ease;
+  color: #666;
+}
+
+.group-toggle.group-open {
+  transform: rotate(90deg);
+}
+
+.group-content {
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.group-content .menu-item:last-child {
+  margin-bottom: 0;
 }
 
 /* 美化下拉框 */
@@ -420,6 +575,14 @@ export default {
   
   .menu-item label {
     color: #ccc;
+  }
+  
+  .group-header h4 {
+    color: #e0e0e0;
+  }
+  
+  .group-content {
+    background-color: rgba(0, 0, 0, 0.2);
   }
   
   .styled-select {

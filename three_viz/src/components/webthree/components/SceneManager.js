@@ -244,8 +244,7 @@ updateControlParams(controlType, params) {
 
       if (intersects.length > 0) {
         this.selectedObject = intersects[0].object;
-
-        console.log(this.selectedObject)
+        console.log("选中对象",this.selectedObject)
         // 将选中对象附加到变换控制器
         this.transformControls.attach(this.selectedObject);
       } else {
@@ -299,7 +298,36 @@ addModel({ type, data, layer = 'default', options = {} }) {
   }
   return null;
 }
+// 在 SceneManager.js 中添加此方法
+// 在 SceneManager.js 中修改 getMeshByUuid 方法
 
+/**
+ * 根据UUID获取网格对象
+ * @param {string} uuid - 网格的唯一标识符
+ * @returns {THREE.Mesh|null} 找到的网格对象或null
+ */
+getMeshByUuid(uuid) {
+  // 检查参数
+  if (!uuid) {
+    console.warn('getMeshByUuid: uuid parameter is required');
+    return null;
+  }
+  
+  // 正确遍历 Map 对象
+  for (const [layerName, meshes] of this.layers.entries()) {
+    // 确保 meshes 是一个数组
+    if (Array.isArray(meshes)) {
+      for (const mesh of meshes) {
+        if (mesh && mesh.uuid === uuid) {
+          return mesh;
+        }
+      }
+    }
+  }
+  
+  // 如果没有找到匹配的网格
+  return null;
+}
   // 移除数据
   removeData(layer) {
     if (this.dataLayers.has(layer)) {
@@ -316,6 +344,13 @@ addModel({ type, data, layer = 'default', options = {} }) {
   render() {
     this.renderer.render(this.scene, this.camera);
   }
+    // 获取所有 key 的数组
+    getKeysArray() {
+      // 使用扩展运算符将 Map 的 key 迭代器转换为数组
+      return [...this.dataLayers.keys()];
+      // 或者使用 Array.from：
+      // return Array.from(this.dataLayers.keys());
+    }
     /**
    * 根据图层名称获取所有 Mesh 对象
    * @param {string} layer 图层名称
@@ -772,6 +807,7 @@ resetCamera(options = {}) {
   
   console.log('Camera reset to position:', position, 'looking at:', lookAt);
 }
+
 }
 
 export default SceneManager;

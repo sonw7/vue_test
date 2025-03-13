@@ -63,20 +63,48 @@ export default {
     // 存储所有图层的名称
     const layerNames = ref([]);
 
-    // 动态生成地层选择的选项
-    const updateMenuItems = () => {
-      const layerOptions = layerNames.value.map(([group, name]) => ({
-        label: `${group} - ${name}`,
-        value: name,
-      }));
+    // // 动态生成地层选择的选项
+    // const updateMenuItems = () => {
+    //   const layerOptions = layerNames.value.map(([group, name]) => ({
+    //     label: `${group} - ${name}`,
+    //     value: name,
+    //   }));
+    //   menuItems.value = menuItems.value.map((item) => {
+    //     if (item.key === "layerSelect") {
+    //       return { ...item, options: layerOptions };
+    //     }
+    //     return item;
+    //   });
+    // };
+// 动态生成地层选择的选项
+const updateMenuItems = () => {
+      // 筛选出只属于"地层"组的图层
+      const layerOptions = layerNames.value
+        .filter(([group]) => group === "地层")
+        .map(([group, name]) => ({
+          label: name,
+          value: name,
+        }));
+      
       menuItems.value = menuItems.value.map((item) => {
         if (item.key === "layerSelect") {
           return { ...item, options: layerOptions };
         }
+        // 更新地层间距计算的源地层和目标地层选项
+        else if (item.key === "layerDistanceCalculation") {
+          return {
+            ...item,
+            children: item.children.map(child => {
+              if (child.key === "sourceLayer" || child.key === "targetLayer") {
+                return { ...child, options: layerOptions };
+              }
+              return child;
+            })
+          };
+        }
         return item;
       });
     };
-
     // 监听 layerNames 的变化，并更新 menuItems
     watch(layerNames, updateMenuItems, { deep: true });
 
@@ -354,5 +382,10 @@ div {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+}
+.distance-legend {
+  z-index: 1000;
+  font-size: 12px;
+  font-family: Arial, sans-serif;
 }
 </style>
