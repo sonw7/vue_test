@@ -78,33 +78,49 @@ export default {
     // };
 // 动态生成地层选择的选项
 const updateMenuItems = () => {
-      // 筛选出只属于"地层"组的图层
-      const layerOptions = layerNames.value
-        .filter(([group]) => group === "地层")
-        .map(([group, name]) => ({
-          label: name,
-          value: name,
-        }));
-      
-      menuItems.value = menuItems.value.map((item) => {
-        if (item.key === "layerSelect") {
-          return { ...item, options: layerOptions };
-        }
-        // 更新地层间距计算的源地层和目标地层选项
-        else if (item.key === "layerDistanceCalculation") {
-          return {
-            ...item,
-            children: item.children.map(child => {
-              if (child.key === "sourceLayer" || child.key === "targetLayer") {
-                return { ...child, options: layerOptions };
-              }
-              return child;
-            })
-          };
-        }
-        return item;
-      });
-    };
+  // 筛选出只属于"地层"组的图层，用于地层间距计算
+  const layerOptions = layerNames.value
+    .filter(([group]) => group === "地层")
+    .map(([group, name]) => ({
+      label: name,
+      value: name,
+    }));
+  
+  // 所有图层选项，用于透明度控制
+  const allLayerOptions = layerNames.value
+    .map(([group, name]) => ({
+      label: `${group} - ${name}`,
+      value: name,
+    }));
+  
+  menuItems.value = menuItems.value.map((item) => {
+    if (item.key === "layerTransparency") {
+      // 更新透明度控制中的地层选择下拉框
+      return {
+        ...item,
+        children: item.children.map(child => {
+          if (child.key === "layerSelect") {
+            return { ...child, options: allLayerOptions };
+          }
+          return child;
+        })
+      };
+    }
+    else if (item.key === "layerDistanceCalculation") {
+      // 更新地层间距计算中的源地层和目标地层选项
+      return {
+        ...item,
+        children: item.children.map(child => {
+          if (child.key === "sourceLayer" || child.key === "targetLayer") {
+            return { ...child, options: layerOptions };
+          }
+          return child;
+        })
+      };
+    }
+    return item;
+  });
+};
     // 监听 layerNames 的变化，并更新 menuItems
     watch(layerNames, updateMenuItems, { deep: true });
 
