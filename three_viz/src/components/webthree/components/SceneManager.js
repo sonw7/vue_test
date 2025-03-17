@@ -6,6 +6,7 @@ import { createCompass,createAxes} from '../utils/axesManage'
 import { FirstPersonControls } from 'three/examples/jsm/controls/FirstPersonControls';
 import  {FontLoader}  from 'three/examples/jsm/loaders/FontLoader.js'
 import { boxUvCom } from '../utils/uvMappingUtils';
+
 class SceneManager {
   constructor(container) {
     this.container = container;
@@ -22,6 +23,12 @@ class SceneManager {
     this.currentControl = 'orbit'; // 当前使用的控制器类型
     this.fontLoader = new FontLoader();
     this.textureCache = new Map(); // 用于缓存已加载的纹理
+    
+    // 新增: 用于射线检测和信息显示
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
+    this.hoveredObject = null;
+    this.infoTooltip = null; // 信息提示框DOM元素
 
     this.controlParams = {
       orbit: {
@@ -72,10 +79,35 @@ class SceneManager {
 
     // 初始化灯光
     this.initLights();
+    
+    // 创建信息提示框
+    this._createInfoTooltip();
+    
     // 添加交互事件
     this._addInteraction();
         
     this.animate();
+  }
+
+  // 创建信息提示框
+  _createInfoTooltip() {
+    // 创建一个DIV元素作为提示框
+    this.infoTooltip = document.createElement('div');
+    this.infoTooltip.style.position = 'absolute';
+    this.infoTooltip.style.padding = '8px 12px';
+    this.infoTooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    this.infoTooltip.style.color = 'white';
+    this.infoTooltip.style.borderRadius = '4px';
+    this.infoTooltip.style.fontSize = '14px';
+    this.infoTooltip.style.pointerEvents = 'none'; // 不阻挡鼠标事件
+    this.infoTooltip.style.zIndex = '1000';
+    this.infoTooltip.style.display = 'none'; // 初始隐藏
+    this.infoTooltip.style.transition = 'opacity 0.2s';
+    this.infoTooltip.style.whiteSpace = 'nowrap';
+    this.infoTooltip.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
+    
+    // 添加到容器中
+    this.container.appendChild(this.infoTooltip);
   }
 
   // 动画循环
@@ -89,8 +121,83 @@ class SceneManager {
       this.firstPersonControls.update(0.1); // 参数为时间步长，可根据实际调整
     }
 
+    // 执行射线检测
+    this._checkRaycasterIntersection();
+
     this.renderer.render(this.scene, this.camera);
   }
+  
+  // 新增: 射线检测方法
+  _checkRaycasterIntersection() {
+    // 只在有鼠标位置数据时执行
+    if (this.mouse.x !== undefined && this.mouse.y !== undefined) {
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      
+      // 获取所有可能的对象
+      const allObjects = [];
+      this.dataLayers.forEach(objects => {
+        allObjects.push(...objects);
+      });
+      
+      const intersects = this.raycaster.intersectObjects(allObjects, true);
+      
+      if (intersects.length > 0) {
+        // 找到最近的对象
+        const intersectedObject = intersects[0].object;
+        
+        // 如果对象有name属性，显示提示框
+        if (intersectedObject.name && intersectedObject.name !== 'default') {
+          // 如果悬停对象变化，更新提示框内容
+          if (this.hoveredObject !== intersectedObject) {
+            this.hoveredObject = intersectedObject;
+            
+            // 更新提示框内容
+            this._updateTooltip(intersectedObject.name);
+            
+            // 显示提示框
+            this.infoTooltip.style.display = 'block';
+            this.infoTooltip.style.opacity = '1';
+          }
+        } else {
+          // 如果对象没有name或name为default，隐藏提示框
+          this._hideTooltip();
+          this.hoveredObject = null;
+        }
+      } else {
+        // 如果没有交叉对象，隐藏提示框
+        this._hideTooltip();
+        this.hoveredObject = null;
+      }
+    }
+  }
+  
+  // 新增: 更新提示框内容和位置
+  _updateTooltip(name) {
+    // 更新提示框内容
+    this.infoTooltip.textContent = name;
+    
+    // 获取鼠标在屏幕上的位置
+    const mouseX = (this.mouse.x + 1) / 2 * window.innerWidth;
+    const mouseY = (1 - (this.mouse.y + 1) / 2) * window.innerHeight;
+    
+    // 设置提示框位置，稍微偏移以避免遮挡鼠标
+    this.infoTooltip.style.left = (mouseX + 15) + 'px';
+    this.infoTooltip.style.top = (mouseY - 15) + 'px';
+  }
+  
+  // 新增: 隐藏提示框
+  _hideTooltip() {
+    if (this.infoTooltip) {
+      this.infoTooltip.style.opacity = '0';
+      // 使用setTimeout确保过渡效果完成后再隐藏元素
+      setTimeout(() => {
+        if (this.infoTooltip.style.opacity === '0') {
+          this.infoTooltip.style.display = 'none';
+        }
+      }, 200);
+    }
+  }
+
   initLights() {
     // 环境光
     const ambientLight = new THREE.AmbientLight(0x404040); // 柔和的白光
@@ -111,12 +218,14 @@ class SceneManager {
     pointLight.position.set(-13, 150, 10);
     this.scene.add(pointLight);
   }
- // 初始化 OrbitControls
+  
+  // 初始化 OrbitControls
   _initOrbitControls() {
     this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
     this.orbitControls.enableDamping = this.controlParams.orbit.enableDamping;
     this.orbitControls.dampingFactor = this.controlParams.orbit.dampingFactor;
   }
+  
   // 初始化 FirstPersonControls
   _initFirstPersonControls() {
     this.firstPersonControls = new FirstPersonControls(this.camera, this.renderer.domElement);
@@ -125,113 +234,114 @@ class SceneManager {
     this.firstPersonControls.noFly = this.controlParams.firstPerson.noFly;
     this.firstPersonControls.lookVertical = this.controlParams.firstPerson.lookVertical;
   }
-// 切换控制器
-switchControl(controlType) {
-  if (controlType === 'orbit') {
-    this._useOrbitControls();
-  } else if (controlType === 'firstPerson') {
-    this._useFirstPersonControls();
-  } else {
-    console.warn('Unsupported control type:', controlType);
-  }
-}
-
-// 启用 OrbitControls
-// 启用 OrbitControls
-// 启用 OrbitControls
-_useOrbitControls() {
-  this.currentControl = 'orbit';
-  this.firstPersonControls.enabled = false;
   
-  // 如果有保存的相机状态，恢复它
-  if (this._savedCameraState) {
-    this.camera.position.copy(this._savedCameraState.position);
-    this.orbitControls.target.copy(this._savedCameraState.target);
+  // 切换控制器
+  switchControl(controlType) {
+    if (controlType === 'orbit') {
+      this._useOrbitControls();
+    } else if (controlType === 'firstPerson') {
+      this._useFirstPersonControls();
+    } else {
+      console.warn('Unsupported control type:', controlType);
+    }
+  }
+
+  // 启用 OrbitControls
+  _useOrbitControls() {
+    this.currentControl = 'orbit';
+    this.firstPersonControls.enabled = false;
     
-    // 恢复相机的近裁面和远裁面
-    this.camera.near = this._savedCameraState.near;
-    this.camera.far = this._savedCameraState.far;
+    // 如果有保存的相机状态，恢复它
+    if (this._savedCameraState) {
+      this.camera.position.copy(this._savedCameraState.position);
+      this.orbitControls.target.copy(this._savedCameraState.target);
+      
+      // 恢复相机的近裁面和远裁面
+      this.camera.near = this._savedCameraState.near;
+      this.camera.far = this._savedCameraState.far;
+      this.camera.updateProjectionMatrix(); // 重要：更新投影矩阵
+    }
+    
+    this.orbitControls.enabled = true;
+    this.orbitControls.update();
+    
+    console.log('轨道控制器已启用，相机近裁面距离恢复为:', this.camera.near);
+  }
+
+  // 启用 FirstPersonControls
+  _useFirstPersonControls() {
+    this.currentControl = 'firstPerson';
+    this.orbitControls.enabled = false;
+    
+    // 保存当前相机位置和投影参数，以便切换回轨道控制器时可以恢复
+    if (!this._savedCameraState) {
+      this._savedCameraState = {
+        position: this.camera.position.clone(),
+        target: this.orbitControls.target.clone(),
+        near: this.camera.near,
+        far: this.camera.far
+      };
+    }
+    
+    // 将相机重置到原点或指定的起始位置
+    const startPosition = { x: 0.6, y: -1.25, z: 0 }; // y=2 让相机略高于地面，像人眼高度
+    this.camera.position.set(startPosition.x, startPosition.y, startPosition.z);
+    
+    // 设置相机朝向 (例如，朝向z轴正方向)
+    const lookDirection = { x: 0, y: 2, z: 10 };
+    this.camera.lookAt(lookDirection.x, lookDirection.y, lookDirection.z);
+    
+    // 调整相机的近裁面和远裁面
+    this.camera.near = 0.01; // 设置非常近的近裁面，可以看到很近的物体
+    this.camera.far = 1000;  // 根据场景大小调整远裁面
     this.camera.updateProjectionMatrix(); // 重要：更新投影矩阵
-  }
-  
-  this.orbitControls.enabled = true;
-  this.orbitControls.update();
-  
-  console.log('轨道控制器已启用，相机近裁面距离恢复为:', this.camera.near);
-}
-
-// 启用 FirstPersonControls
-_useFirstPersonControls() {
-  this.currentControl = 'firstPerson';
-  this.orbitControls.enabled = false;
-  
-  // 保存当前相机位置和投影参数，以便切换回轨道控制器时可以恢复
-  if (!this._savedCameraState) {
-    this._savedCameraState = {
-      position: this.camera.position.clone(),
-      target: this.orbitControls.target.clone(),
-      near: this.camera.near,
-      far: this.camera.far
-    };
-  }
-  
-  // 将相机重置到原点或指定的起始位置
-  const startPosition = { x: 0.6, y: -1.25, z: 0 }; // y=2 让相机略高于地面，像人眼高度
-  this.camera.position.set(startPosition.x, startPosition.y, startPosition.z);
-  
-  // 设置相机朝向 (例如，朝向z轴正方向)
-  const lookDirection = { x: 0, y: 2, z: 10 };
-  this.camera.lookAt(lookDirection.x, lookDirection.y, lookDirection.z);
-  
-  // 调整相机的近裁面和远裁面
-  this.camera.near = 0.01; // 设置非常近的近裁面，可以看到很近的物体
-  this.camera.far = 1000;  // 根据场景大小调整远裁面
-  this.camera.updateProjectionMatrix(); // 重要：更新投影矩阵
-  
-  // 确保应用当前的参数设置
-  this.firstPersonControls.lookSpeed = this.controlParams.firstPerson.lookSpeed;
-  this.firstPersonControls.movementSpeed = this.controlParams.firstPerson.movementSpeed;
-  
-  // 重新设置第一人称控制器的目标点
-  this.firstPersonControls.lookAt(lookDirection.x, lookDirection.y, lookDirection.z);
-  
-  // 启用控制器
-  this.firstPersonControls.enabled = true;
-  
-  console.log('第一人称控制器已启用，相机位置重置为:', startPosition,
-              '近裁面距离:', this.camera.near,
-              '旋转速度:', this.firstPersonControls.lookSpeed, 
-              '移动速度:', this.firstPersonControls.movementSpeed);
-}
-
-// 更新控制器参数
-updateControlParams(controlType, params) {
-  if (controlType === 'orbit' && this.orbitControls) {
-    Object.assign(this.controlParams.orbit, params);
-    this.orbitControls.enableDamping = this.controlParams.orbit.enableDamping;
-    this.orbitControls.dampingFactor = this.controlParams.orbit.dampingFactor;
-  } else if (controlType === 'firstPerson' && this.firstPersonControls) {
-    // 更新参数对象
-    Object.assign(this.controlParams.firstPerson, params);
     
-    // 应用参数到控制器
+    // 确保应用当前的参数设置
     this.firstPersonControls.lookSpeed = this.controlParams.firstPerson.lookSpeed;
     this.firstPersonControls.movementSpeed = this.controlParams.firstPerson.movementSpeed;
-    this.firstPersonControls.noFly = this.controlParams.firstPerson.noFly;
-    this.firstPersonControls.lookVertical = this.controlParams.firstPerson.lookVertical;
     
-    console.log('第一人称控制器参数已更新:', 
+    // 重新设置第一人称控制器的目标点
+    this.firstPersonControls.lookAt(lookDirection.x, lookDirection.y, lookDirection.z);
+    
+    // 启用控制器
+    this.firstPersonControls.enabled = true;
+    
+    console.log('第一人称控制器已启用，相机位置重置为:', startPosition,
+                '近裁面距离:', this.camera.near,
                 '旋转速度:', this.firstPersonControls.lookSpeed, 
                 '移动速度:', this.firstPersonControls.movementSpeed);
-  } else {
-    console.warn('Unsupported control type or invalid parameters:', controlType, params);
   }
-}
- // 添加交互事件
- _addInteraction() {
+
+  // 更新控制器参数
+  updateControlParams(controlType, params) {
+    if (controlType === 'orbit' && this.orbitControls) {
+      Object.assign(this.controlParams.orbit, params);
+      this.orbitControls.enableDamping = this.controlParams.orbit.enableDamping;
+      this.orbitControls.dampingFactor = this.controlParams.orbit.dampingFactor;
+    } else if (controlType === 'firstPerson' && this.firstPersonControls) {
+      // 更新参数对象
+      Object.assign(this.controlParams.firstPerson, params);
+      
+      // 应用参数到控制器
+      this.firstPersonControls.lookSpeed = this.controlParams.firstPerson.lookSpeed;
+      this.firstPersonControls.movementSpeed = this.controlParams.firstPerson.movementSpeed;
+      this.firstPersonControls.noFly = this.controlParams.firstPerson.noFly;
+      this.firstPersonControls.lookVertical = this.controlParams.firstPerson.lookVertical;
+      
+      console.log('第一人称控制器参数已更新:', 
+                  '旋转速度:', this.firstPersonControls.lookSpeed, 
+                  '移动速度:', this.firstPersonControls.movementSpeed);
+    } else {
+      console.warn('Unsupported control type or invalid parameters:', controlType, params);
+    }
+  }
+  
+  // 添加交互事件
+  _addInteraction() {
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
+    // 点击事件 - 选择对象
     this.container.addEventListener('click', (event) => {
       const rect = this.container.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -244,7 +354,7 @@ updateControlParams(controlType, params) {
 
       if (intersects.length > 0) {
         this.selectedObject = intersects[0].object;
-        console.log("选中对象",this.selectedObject)
+        console.log("选中对象", this.selectedObject);
         // 将选中对象附加到变换控制器
         this.transformControls.attach(this.selectedObject);
       } else {
@@ -255,79 +365,92 @@ updateControlParams(controlType, params) {
 
       this.render();
     });
+    
+    // 鼠标移动事件 - 用于显示提示框
+    this.container.addEventListener('mousemove', (event) => {
+      const rect = this.container.getBoundingClientRect();
+      this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    });
+    
+    // 鼠标离开容器时隐藏提示框
+    this.container.addEventListener('mouseleave', () => {
+      this._hideTooltip();
+      this.hoveredObject = null;
+    });
   }
 
   // 添加数据
-// 添加数据
-addModel({ type, data, layer = 'default', options = {} }) {
-  let object;
+  addModel({ type, data, layer = 'default', options = {} }) {
+    let object;
 
-  // 确保 options 中有 position 属性
-  options.position = options.position || { x: 0, y: 0, z: 0 };
+    // 确保 options 中有 position 属性
+    options.position = options.position || { x: 0, y: 0, z: 0 };
 
-  switch (type) {
-    case 'points': // 点数据
-      object = this._createPointCloud(data, options);
-      break;
+    switch (type) {
+      case 'points': // 点数据
+        object = this._createPointCloud(data, options);
+        break;
 
-    case 'indices': // 索引数据
-      object = this._createIndexedMesh(data, options);
-      break;
+      case 'indices': // 索引数据
+        object = this._createIndexedMesh(data, options);
+        break;
 
-    case 'model': // 模型文件
-      this._loadModel(data, layer, options);
-      return;
+      case 'model': // 模型文件
+        this._loadModel(data, layer, options);
+        return;
 
-    case 'custom': // 自定义渲染
-      object = options.renderFunction?.(data, THREE);
-      break;
-      
-    case 'triangleMesh': // 三角面数据
-      object = this._createTriangleMesh(data, options,layer);
-      break;
-      
-    default:
-      console.warn('Unsupported data type:', type);
-      return;
-  }
-  
-  if (object) {
-    // 添加对象到场景并分层管理
-    this._addToLayer(layer, object);
-    return { layer, object }; // 返回图层名和对象
-  }
-  return null;
-}
-// 在 SceneManager.js 中添加此方法
-// 在 SceneManager.js 中修改 getMeshByUuid 方法
-
-/**
- * 根据UUID获取网格对象
- * @param {string} uuid - 网格的唯一标识符
- * @returns {THREE.Mesh|null} 找到的网格对象或null
- */
-getMeshByUuid(uuid) {
-  // 检查参数
-  if (!uuid) {
-    console.warn('getMeshByUuid: uuid parameter is required');
+      case 'custom': // 自定义渲染
+        object = options.renderFunction?.(data, THREE);
+        break;
+        
+      case 'triangleMesh': // 三角面数据
+        object = this._createTriangleMesh(data, options, layer);
+        break;
+        
+      default:
+        console.warn('Unsupported data type:', type);
+        return;
+    }
+    
+    if (object) {
+      // 添加对象到场景并分层管理
+      this._addToLayer(layer, object);
+      return { layer, object }; // 返回图层名和对象
+    }
     return null;
   }
   
-  // 正确遍历 Map 对象
-  for (const [layerName, meshes] of this.layers.entries()) {
-    // 确保 meshes 是一个数组
-    if (Array.isArray(meshes)) {
-      for (const mesh of meshes) {
-        if (mesh && mesh.uuid === uuid) {
-          return mesh;
+  // 在 SceneManager.js 中添加此方法
+  // 在 SceneManager.js 中修改 getMeshByUuid 方法
+  /**
+   * 根据UUID获取网格对象
+   * @param {string} uuid - 网格的唯一标识符
+   * @returns {THREE.Mesh|null} 找到的网格对象或null
+   */
+  getMeshByUuid(uuid) {
+    // 检查参数
+    if (!uuid) {
+      console.warn('getMeshByUuid: uuid parameter is required');
+      return null;
+    }
+    
+    // 正确遍历 Map 对象
+    for (const [layerName, meshes] of this.layers.entries()) {
+      // 确保 meshes 是一个数组
+      if (Array.isArray(meshes)) {
+        for (const mesh of meshes) {
+          if (mesh && mesh.uuid === uuid) {
+            return mesh;
+          }
         }
       }
     }
+    
+    // 如果没有找到匹配的网格
+    return null;
   }
   
-  // 如果没有找到匹配的网格
-  return null;
-}
   // 移除数据
   removeData(layer) {
     if (this.dataLayers.has(layer)) {
@@ -341,153 +464,157 @@ getMeshByUuid(uuid) {
       this.dataLayers.delete(layer);
     }
   }
+  
   render() {
     this.renderer.render(this.scene, this.camera);
   }
-    // 获取所有 key 的数组
-    getKeysArray() {
-      // 使用扩展运算符将 Map 的 key 迭代器转换为数组
-      return [...this.dataLayers.keys()];
-      // 或者使用 Array.from：
-      // return Array.from(this.dataLayers.keys());
-    }
-    /**
+  
+  // 获取所有 key 的数组
+  getKeysArray() {
+    // 使用扩展运算符将 Map 的 key 迭代器转换为数组
+    return [...this.dataLayers.keys()];
+    // 或者使用 Array.from：
+    // return Array.from(this.dataLayers.keys());
+  }
+  
+  /**
    * 根据图层名称获取所有 Mesh 对象
    * @param {string} layer 图层名称
    * @returns {Array<THREE.Object3D>} 图层中的所有对象
    */
-    getMeshesByLayer(layer) {
-      if (this.dataLayers.has(layer)) {
-        return this.dataLayers.get(layer);
-      } else {
-        console.warn(`Layer "${layer}" does not exist.`);
-        return [];
-      }
+  getMeshesByLayer(layer) {
+    if (this.dataLayers.has(layer)) {
+      return this.dataLayers.get(layer);
+    } else {
+      console.warn(`Layer "${layer}" does not exist.`);
+      return [];
     }
-    //更新贴图
-    replaceTexture(mesh, textureUrl) {
-      const textureLoader = new THREE.TextureLoader();
+  }
+  
+  //更新贴图
+  replaceTexture(mesh, textureUrl) {
+    const textureLoader = new THREE.TextureLoader();
+  
+    // 加载新贴图
+    textureLoader.load(textureUrl, (texture) => {
+      if (mesh.material.map) {
+        mesh.material.map.dispose(); // 释放旧贴图
+      }
+      mesh.material.map = texture; // 应用新贴图
+      mesh.material.needsUpdate = true; // 确保更新材质
+    });
+  }
+  
+  // 更新数据
+  updateData(layer, newData, options = {}) {
+    this.removeData(layer);
+    this.addModel({ type: options.type, data: newData, layer, options });
+  }
+  
+  // 创建点云
+  _createPointCloud(points, { color = 0x00ff00, size = 0.1, position = { x: 0, y: 0, z: 0 } }) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+
+    const material = new THREE.PointsMaterial({ color, size });
+    const pointCloud = new THREE.Points(geometry, material);
     
-      // 加载新贴图
-      textureLoader.load(textureUrl, (texture) => {
-        if (mesh.material.map) {
-          mesh.material.map.dispose(); // 释放旧贴图
-        }
-        mesh.material.map = texture; // 应用新贴图
-        mesh.material.needsUpdate = true; // 确保更新材质
+    // 应用位移
+    pointCloud.position.set(position.x || 0, position.y || 0, position.z || 0);
+    
+    return pointCloud;
+  }
+
+  // 创建索引数据
+  _createIndexedMesh({ vertices, indices, index = 0 }, { 
+    color = 0xffffff, 
+    position = { x: 0, y: 0, z: 0 },
+    scaleFactor = 0.005,
+    rotation = { x: Math.PI / 2, y: 0, z: 0 }
+  }) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(vertices, 3)
+    );
+    geometry.setIndex(indices);
+
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      wireframe: true,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+
+    // 应用缩放
+    mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+    // 应用旋转
+    mesh.rotation.set(rotation.x || 0, rotation.y || 0, rotation.z || 0);
+    
+    // 应用位移
+    mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
+
+    mesh.renderOrder = 100 - index;
+
+    return mesh;
+  }
+
+  // 创建三角面网格
+  _createTriangleMesh({ vertices, indices, index = 1 }, options = {}, layer) {
+    const geometry = new THREE.BufferGeometry();
+    // 设置顶点位置
+    geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(vertices, 3)
+    );
+    // 设置索引
+    geometry.setIndex(indices);
+    // 计算法向量（生成 `normal` 属性）
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+
+    // 创建材质 - 根据是否有纹理来决定材质属性
+    let material;
+    if (options.textureUrl) {
+      // 如果有纹理，创建不影响纹理颜色的材质
+      material = new THREE.MeshBasicMaterial({
+        color: options.color || 0xd4d6db, // 白色不会影响纹理颜色
+        side: THREE.DoubleSide, // 双面渲染
+        map: null // 纹理将在 addTexture 方法中加载和设置
+      });
+    } else {
+      // 如果没有纹理，使用指定颜色
+      material = new THREE.MeshBasicMaterial({
+        color: options.color || 0xffffff, // 默认白色
+        side: THREE.DoubleSide, // 双面渲染
       });
     }
     
-    // 更新数据
-    updateData(layer, newData, options = {}) {
-      this.removeData(layer);
-      this.addModel({ type: options.type, data: newData, layer, options });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = layer|| 'default';
+
+    // 应用缩放
+    const scaleFactor = options.scaleFactor || { scaleX: 1, scaleY: 1, scaleZ: 1 };
+    mesh.scale.set(scaleFactor || 1, scaleFactor|| 1, scaleFactor|| 1);
+
+    // 应用旋转
+    const rotationAngle = options.rotationAngle || { x: 0, y: 0, z: 0 };
+    mesh.rotation.set(rotationAngle.x || 0, rotationAngle.y || 0, rotationAngle.z || 0);
+    
+    // 应用位移
+    const position = options.position || { x: 0, y: 0, z: 0 };
+    mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
+
+    // 设置渲染顺序
+    mesh.renderOrder = 100 - index;
+    
+    // 如果有纹理URL，添加纹理
+    if (options.textureUrl) {
+      this.addTexture(mesh, options.textureUrl, options.textureRepeat);
     }
-// 创建点云
-_createPointCloud(points, { color = 0x00ff00, size = 0.1, position = { x: 0, y: 0, z: 0 } }) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-
-  const material = new THREE.PointsMaterial({ color, size });
-  const pointCloud = new THREE.Points(geometry, material);
-  
-  // 应用位移
-  pointCloud.position.set(position.x || 0, position.y || 0, position.z || 0);
-  
-  return pointCloud;
-}
-
-// 创建索引数据
-_createIndexedMesh({ vertices, indices, index = 0 }, { 
-  color = 0xffffff, 
-  position = { x: 0, y: 0, z: 0 },
-  scaleFactor = 0.005,
-  rotation = { x: Math.PI / 2, y: 0, z: 0 }
-}) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(vertices, 3)
-  );
-  geometry.setIndex(indices);
-
-  const material = new THREE.MeshBasicMaterial({
-    color,
-    wireframe: true,
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-
-  // 应用缩放
-  mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
-
-  // 应用旋转
-  mesh.rotation.set(rotation.x || 0, rotation.y || 0, rotation.z || 0);
-  
-  // 应用位移
-  mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
-
-  mesh.renderOrder = 100 - index;
-
-  return mesh;
-}
-
-// 创建三角面网格
-// 创建三角面网格
-_createTriangleMesh({ vertices, indices, index = 1 }, options = {},layer) {
-  const geometry = new THREE.BufferGeometry();
-  // 设置顶点位置
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(vertices, 3)
-  );
-  // 设置索引
-  geometry.setIndex(indices);
-  // 计算法向量（生成 `normal` 属性）
-  geometry.computeVertexNormals();
-  geometry.computeBoundingBox();
-
-  // 创建材质 - 根据是否有纹理来决定材质属性
-  let material;
-  if (options.textureUrl) {
-    // 如果有纹理，创建不影响纹理颜色的材质
-    material = new THREE.MeshBasicMaterial({
-      color: options.color || 0xd4d6db, // 白色不会影响纹理颜色
-      side: THREE.DoubleSide, // 双面渲染
-      map: null // 纹理将在 addTexture 方法中加载和设置
-    });
-  } else {
-    // 如果没有纹理，使用指定颜色
-    material = new THREE.MeshBasicMaterial({
-      color: options.color || 0xffffff, // 默认白色
-      side: THREE.DoubleSide, // 双面渲染
-    });
+    
+    return mesh;
   }
-  
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = layer|| 'default';
-
-  // 应用缩放
-  const scaleFactor = options.scaleFactor || { scaleX: 1, scaleY: 1, scaleZ: 1 };
-  mesh.scale.set(scaleFactor || 1, scaleFactor|| 1, scaleFactor|| 1);
-
-  // 应用旋转
-  const rotationAngle = options.rotationAngle || { x: 0, y: 0, z: 0 };
-  mesh.rotation.set(rotationAngle.x || 0, rotationAngle.y || 0, rotationAngle.z || 0);
-  
-  // 应用位移
-  const position = options.position || { x: 0, y: 0, z: 0 };
-  mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
-
-  // 设置渲染顺序
-  mesh.renderOrder = 100 - index;
-  
-  // 如果有纹理URL，添加纹理
-  if (options.textureUrl) {
-    this.addTexture(mesh, options.textureUrl,options.textureRepeat);
-  }
-  
-  return mesh;
-}
 
   // 加载模型
   // 加载模型（异步支持贴图）
@@ -522,84 +649,73 @@ _createTriangleMesh({ vertices, indices, index = 1 }, options = {},layer) {
       );
     });
   }
-/**
- * 添加已创建的 mesh 到场景并应用变换
- * @param {THREE.Object3D} mesh - 要添加的 Three.js 对象
- * @param {Object} options - 变换选项
- * @param {string} options.layer - 图层名称
- * @param {Object} [options.position] - 位置 {x, y, z}
- * @param {Object} [options.rotation] - 旋转（弧度） {x, y, z}
- * @param {Object|number} [options.scale] - 缩放 {x, y, z} 或单一数值
- * @param {Array} [options.layerCategory] - 图层分类 [分类名, 图层名]，用于图层控制面板
- * @returns {Object} 包含图层名和对象的引用
- */
-addMeshToScene(mesh, options = {}) {
-  if (!mesh) {
-    console.error('无效的 mesh 对象');
-    return null;
-  }
-
-  const layer = options.layer || 'default';
-  mesh.name = layer|| 'default';
-
-  // 应用位置（如果尚未应用）
-  if (options.position && (!mesh.userData.positionApplied)) {
-    mesh.position.set(
-      options.position.x || 0,
-      options.position.y || 0,
-      options.position.z || 0
-    );
-    mesh.userData.positionApplied = true;
-  }
   
-  // 应用旋转（如果尚未应用）
-  if (options.rotation && (!mesh.userData.rotationApplied)) {
-    mesh.rotation.set(
-      options.rotation.x || 0,
-      options.rotation.y || 0,
-      options.rotation.z || 0
-    );
-    mesh.userData.rotationApplied = true;
-  }
-  
-  // 应用缩放（如果尚未应用）
-  if (options.scale !== undefined && (!mesh.userData.scaleApplied)) {
-    if (typeof options.scale === 'number') {
-      // 如果是单一数值，应用到所有轴
-      mesh.scale.set(options.scale, options.scale, options.scale);
-    } else {
-      // 如果是对象，分别应用到各轴
-      mesh.scale.set(
-        options.scale.x || 1,
-        options.scale.y || 1,
-        options.scale.z || 1
-      );
+  /**
+   * 添加已创建的 mesh 到场景并应用变换
+   * @param {THREE.Object3D} mesh - 要添加的 Three.js 对象
+   * @param {Object} options - 变换选项
+   * @param {string} options.layer - 图层名称
+   * @param {Object} [options.position] - 位置 {x, y, z}
+   * @param {Object} [options.rotation] - 旋转（弧度） {x, y, z}
+   * @param {Object|number} [options.scale] - 缩放 {x, y, z} 或单一数值
+   * @param {Array} [options.layerCategory] - 图层分类 [分类名, 图层名]，用于图层控制面板
+   * @returns {Object} 包含图层名和对象的引用
+   */
+  addMeshToScene(mesh, options = {}) {
+    if (!mesh) {
+      console.error('无效的 mesh 对象');
+      return null;
     }
-    mesh.userData.scaleApplied = true;
+
+    const layer = options.layer || 'default';
+    mesh.name = layer|| 'default';
+
+    // 应用位置（如果尚未应用）
+    if (options.position && (!mesh.userData.positionApplied)) {
+      mesh.position.set(
+        options.position.x || 0,
+        options.position.y || 0,
+        options.position.z || 0
+      );
+      mesh.userData.positionApplied = true;
+    }
+    
+    // 应用旋转（如果尚未应用）
+    if (options.rotation && (!mesh.userData.rotationApplied)) {
+      mesh.rotation.set(
+        options.rotation.x || 0,
+        options.rotation.y || 0,
+        options.rotation.z || 0
+      );
+      mesh.userData.rotationApplied = true;
+    }
+    
+    // 应用缩放（如果尚未应用）
+    if (options.scale !== undefined && (!mesh.userData.scaleApplied)) {
+      if (typeof options.scale === 'number') {
+        // 如果是单一数值，应用到所有轴
+        mesh.scale.set(options.scale, options.scale, options.scale);
+      } else {
+        // 如果是对象，分别应用到各轴
+        mesh.scale.set(
+          options.scale.x || 1,
+          options.scale.y || 1,
+          options.scale.z || 1
+        );
+      }
+      mesh.userData.scaleApplied = true;
+    }
+    
+    // 如果有材质和贴图URL，应用贴图
+    if (options.textureUrl && mesh.material) {
+      this.addTexture(mesh, options.textureUrl);
+    }
+    // 添加到指定图层
+    this._addToLayer(layer, mesh);
+    
+    // 返回图层名和对象引用
+    return { layer, object: mesh };
   }
-  
-  // 如果有材质和贴图URL，应用贴图
-  if (options.textureUrl && mesh.material) {
-    this.addTexture(mesh, options.textureUrl);
-  }
-  // 添加到指定图层
-  this._addToLayer(layer, mesh);
-  
-  // // 如果提供了图层分类信息，并且有添加到图层列表的方法
-  // if (options.layerCategory && Array.isArray(options.layerCategory)) {
-  //   // 如果有addToLayerList方法，调用它
-  //   if (typeof this.addToLayerList === 'function') {
-  //     this.addToLayerList(options.layerCategory);
-  //   }
-  //   // 或者，如果有layerNames引用，直接添加
-  //   else if (this.layerNames && Array.isArray(this.layerNames)) {
-  //     this.layerNames.push(options.layerCategory);
-  //   }
-  // }
-  
-  // 返回图层名和对象引用
-  return { layer, object: mesh };
-}
 
   // 添加对象到指定层
   _addToLayer(layer, object) {
@@ -609,6 +725,7 @@ addMeshToScene(mesh, options = {}) {
     this.dataLayers.get(layer).push(object);
     this.scene.add(object);
   }
+  
   //渲染钻孔
   renderDrill(drill, colorFunction,options) {
     console.log("渲染的钻孔数据",drill)
@@ -662,24 +779,21 @@ addMeshToScene(mesh, options = {}) {
     // 返回所有生成的网格（便于后续控制）
     return drillMeshes;
   }
+  
   addTexture(mesh, textureUrl,textureRepeat) {
     // 在 SceneManager 类中添加纹理缓存
 
-
-// 修改 addTexture 方法
-  // 检查缓存中是否已有该纹理
-  if (this.textureCache.has(textureUrl)) {
-    const texture = this.textureCache.get(textureUrl);
-    if (mesh.material.map) {
-      mesh.material.map.dispose();
+    // 检查缓存中是否已有该纹理
+    if (this.textureCache.has(textureUrl)) {
+      const texture = this.textureCache.get(textureUrl);
+      if (mesh.material.map) {
+        mesh.material.map.dispose();
+      }
+      mesh.material.map = texture;
+      mesh.material.needsUpdate = true;
+      return;
     }
-    mesh.material.map = texture;
-    mesh.material.needsUpdate = true;
-    return;
-  }
-  
-
-
+    
     const textureLoader = new THREE.TextureLoader();
   
     // 加载新贴图
@@ -760,56 +874,61 @@ addMeshToScene(mesh, options = {}) {
     if (this.firstPersonControls) this.firstPersonControls.dispose();
     if (this.transformControls) this.transformControls.dispose();
 
+    // 移除信息提示框
+    if (this.infoTooltip && this.infoTooltip.parentNode) {
+      this.infoTooltip.parentNode.removeChild(this.infoTooltip);
+    }
+
     this.scene = null;
     this.camera = null;
     this.renderer = null;
   }
+  
   /**
- * 重置相机位置和控制器
- * @param {Object} options - 重置选项
- * @param {Object} [options.position] - 相机位置 {x, y, z}
- * @param {Object} [options.lookAt] - 相机朝向 {x, y, z}
- * @param {boolean} [options.resetControls] - 是否重置控制器状态
- */
-resetCamera(options = {}) {
-  // 默认相机位置和朝向
-  const defaultPosition = { x: 65, y: 30, z: 10 };
-  const defaultLookAt = { x: 0, y: 0, z: 0 };
-  
-  // 使用提供的选项或默认值
-  const position = options.position || defaultPosition;
-  const lookAt = options.lookAt || defaultLookAt;
-  const resetControls = options.resetControls !== undefined ? options.resetControls : true;
-  
-  // 重置相机位置
-  this.camera.position.set(position.x, position.y, position.z);
-  
-  // 重置相机朝向
-  this.camera.lookAt(lookAt.x, lookAt.y, lookAt.z);
-  
-  // 如果需要，重置控制器
-  if (resetControls) {
-    if (this.currentControl === 'orbit' && this.orbitControls) {
-      // 重置 OrbitControls
-      this.orbitControls.target.set(lookAt.x, lookAt.y, lookAt.z);
-      this.orbitControls.update();
-    } else if (this.currentControl === 'firstPerson' && this.firstPersonControls) {
-      // 重置 FirstPersonControls
-      this.firstPersonControls.lookAt(lookAt.x, lookAt.y, lookAt.z);
+   * 重置相机位置和控制器
+   * @param {Object} options - 重置选项
+   * @param {Object} [options.position] - 相机位置 {x, y, z}
+   * @param {Object} [options.lookAt] - 相机朝向 {x, y, z}
+   * @param {boolean} [options.resetControls] - 是否重置控制器状态
+   */
+  resetCamera(options = {}) {
+    // 默认相机位置和朝向
+    const defaultPosition = { x: 65, y: 30, z: 10 };
+    const defaultLookAt = { x: 0, y: 0, z: 0 };
+    
+    // 使用提供的选项或默认值
+    const position = options.position || defaultPosition;
+    const lookAt = options.lookAt || defaultLookAt;
+    const resetControls = options.resetControls !== undefined ? options.resetControls : true;
+    
+    // 重置相机位置
+    this.camera.position.set(position.x, position.y, position.z);
+    
+    // 重置相机朝向
+    this.camera.lookAt(lookAt.x, lookAt.y, lookAt.z);
+    
+    // 如果需要，重置控制器
+    if (resetControls) {
+      if (this.currentControl === 'orbit' && this.orbitControls) {
+        // 重置 OrbitControls
+        this.orbitControls.target.set(lookAt.x, lookAt.y, lookAt.z);
+        this.orbitControls.update();
+      } else if (this.currentControl === 'firstPerson' && this.firstPersonControls) {
+        // 重置 FirstPersonControls
+        this.firstPersonControls.lookAt(lookAt.x, lookAt.y, lookAt.z);
+      }
     }
+    
+    // 更新变换控制器（如果有选中对象）
+    if (this.transformControls && this.selectedObject) {
+      this.transformControls.update();
+    }
+    
+    // 立即渲染一次，以显示新的视图
+    this.render();
+    
+    console.log('Camera reset to position:', position, 'looking at:', lookAt);
   }
-  
-  // 更新变换控制器（如果有选中对象）
-  if (this.transformControls && this.selectedObject) {
-    this.transformControls.update();
-  }
-  
-  // 立即渲染一次，以显示新的视图
-  this.render();
-  
-  console.log('Camera reset to position:', position, 'looking at:', lookAt);
-}
-
 }
 
 export default SceneManager;
