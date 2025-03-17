@@ -283,7 +283,7 @@ addModel({ type, data, layer = 'default', options = {} }) {
       break;
       
     case 'triangleMesh': // 三角面数据
-      object = this._createTriangleMesh(data, options);
+      object = this._createTriangleMesh(data, options,layer);
       break;
       
     default:
@@ -433,7 +433,7 @@ _createIndexedMesh({ vertices, indices, index = 0 }, {
 
 // 创建三角面网格
 // 创建三角面网格
-_createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
+_createTriangleMesh({ vertices, indices, index = 1 }, options = {},layer) {
   const geometry = new THREE.BufferGeometry();
   // 设置顶点位置
   geometry.setAttribute(
@@ -464,6 +464,7 @@ _createTriangleMesh({ vertices, indices, index = 1 }, options = {}) {
   }
   
   const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = layer|| 'default';
 
   // 应用缩放
   const scaleFactor = options.scaleFactor || { scaleX: 1, scaleY: 1, scaleZ: 1 };
@@ -539,7 +540,8 @@ addMeshToScene(mesh, options = {}) {
   }
 
   const layer = options.layer || 'default';
-  
+  mesh.name = layer|| 'default';
+
   // 应用位置（如果尚未应用）
   if (options.position && (!mesh.userData.positionApplied)) {
     mesh.position.set(

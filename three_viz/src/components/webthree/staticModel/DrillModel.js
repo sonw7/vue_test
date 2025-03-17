@@ -55,6 +55,7 @@ async function loadAndRenderDrills(sceneManager, transformer, layerNames = null)
         // 将钻孔添加到场景
         if (drillMesh && sceneManager.addMeshToScene) {
           const layerName = `${drill.name}`;
+          drillMesh.name = layerName;
           sceneManager.addMeshToScene(drillMesh, {
             layer: layerName,
             layerCategory: ['钻孔', layerName]
@@ -151,7 +152,7 @@ function createDrillMesh(drill, options = {}) {
   
     // 创建网格
     const cylinder = new THREE.Mesh(geometry, material);
-    
+    cylinder.name = `drill_${name}`;
     // 设置圆柱体位置（相对于钻孔组）
     cylinder.position.y = segmentCenter;
     cylinder.position.x = zkx;
