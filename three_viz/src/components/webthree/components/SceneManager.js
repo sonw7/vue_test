@@ -198,25 +198,66 @@ class SceneManager {
     }
   }
 
+  // initLights() {
+  //   // 环境光
+  //   const ambientLight = new THREE.AmbientLight(0x404040); // 柔和的白光
+  //   this.scene.add(ambientLight);
+
+  //   // 方向光 1
+  //   const directLight1 = new THREE.DirectionalLight(0xffffff, 0.5);
+  //   directLight1.position.set(100, -150, -100);
+  //   this.scene.add(directLight1);
+
+  //   // 方向光 2
+  //   const directLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+  //   directLight2.position.set(200, -10, 90);
+  //   this.scene.add(directLight2);
+
+  //   // 点光源
+  //   const pointLight = new THREE.PointLight(0xffffff, 1);
+  //   pointLight.position.set(-13, 150, 10);
+  //   this.scene.add(pointLight);
+  // }
   initLights() {
-    // 环境光
-    const ambientLight = new THREE.AmbientLight(0x404040); // 柔和的白光
+    // 环境光 - 显著增强环境光强度
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // 增强环境光强度和亮度
     this.scene.add(ambientLight);
-
-    // 方向光 1
+  
+    // 半球光 - 添加半球光让顶部和底部都能得到照明
+    const hemisphereLight = new THREE.HemisphereLight(
+      0xffffff, // 天空颜色
+      0x8d8d8d, // 地面颜色
+      0.7        // 强度
+    );
+    hemisphereLight.position.set(0, 200, 0);
+    this.scene.add(hemisphereLight);
+  
+    // 方向光 1 - 从顶部照射
     const directLight1 = new THREE.DirectionalLight(0xffffff, 0.5);
-    directLight1.position.set(100, -150, -100);
+    directLight1.position.set(0, 200, 100);
+    directLight1.castShadow = true; // 启用阴影
     this.scene.add(directLight1);
-
-    // 方向光 2
-    const directLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-    directLight2.position.set(200, -10, 90);
+  
+    // 方向光 2 - 从侧面照射
+    const directLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+    directLight2.position.set(100, 50, -100);
     this.scene.add(directLight2);
-
-    // 点光源
-    const pointLight = new THREE.PointLight(0xffffff, 1);
-    pointLight.position.set(-13, 150, 10);
+  
+    // 方向光 3 - 从另一侧面照射
+    const directLight3 = new THREE.DirectionalLight(0xffffff, 0.4);
+    directLight3.position.set(-100, 50, -100);
+    this.scene.add(directLight3);
+  
+    // 点光源 - 更强并靠近模型中心
+    const pointLight = new THREE.PointLight(0xffffff, 1.0, 500);
+    pointLight.position.set(0, 100, 0);
     this.scene.add(pointLight);
+  
+    // 可选：添加灯光辅助器用于调试
+    // this.scene.add(new THREE.DirectionalLightHelper(directLight1, 10));
+    // this.scene.add(new THREE.DirectionalLightHelper(directLight2, 10));
+    // this.scene.add(new THREE.DirectionalLightHelper(directLight3, 10));
+    // this.scene.add(new THREE.PointLightHelper(pointLight, 10));
   }
   
   // 初始化 OrbitControls
@@ -559,62 +600,170 @@ class SceneManager {
     return mesh;
   }
 
-  // 创建三角面网格
-  _createTriangleMesh({ vertices, indices, index = 1 }, options = {}, layer) {
-    const geometry = new THREE.BufferGeometry();
-    // 设置顶点位置
-    geometry.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute(vertices, 3)
-    );
-    // 设置索引
-    geometry.setIndex(indices);
-    // 计算法向量（生成 `normal` 属性）
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-
-    // 创建材质 - 根据是否有纹理来决定材质属性
-    let material;
-    if (options.textureUrl) {
-      // 如果有纹理，创建不影响纹理颜色的材质
-      material = new THREE.MeshBasicMaterial({
-        color: options.color || 0xd4d6db, // 白色不会影响纹理颜色
-        side: THREE.DoubleSide, // 双面渲染
-        map: null // 纹理将在 addTexture 方法中加载和设置
+  // // 创建三角面网格
+  // _createTriangleMesh({ vertices, indices, index = 1 }, options = {}, layer) {
+  //   const geometry = new THREE.BufferGeometry();
+  //   // 设置顶点位置
+  //   geometry.setAttribute(
+  //     'position',
+  //     new THREE.Float32BufferAttribute(vertices, 3)
+  //   );
+  //   // 设置索引
+  //   geometry.setIndex(indices);
+  //   // 计算法向量（生成 `normal` 属性）
+  //   geometry.computeVertexNormals();
+  //   geometry.computeBoundingBox();
+  
+  //   // 创建材质 - 根据是否有纹理来决定材质属性
+  //   let material;
+  //   if (options.textureUrl) {
+  //     // 如果有纹理，创建不影响纹理颜色的材质
+  //     material = new THREE.MeshBasicMaterial({
+  //       color: options.color || 0xd4d6db, // 白色不会影响纹理颜色
+  //       side: THREE.DoubleSide, // 双面渲染
+  //       map: null // 纹理将在 addTexture 方法中加载和设置
+  //     });
+  //   } else {
+  //     // 如果没有纹理，使用指定颜色
+  //     material = new THREE.MeshBasicMaterial({
+  //       color: options.color || 0xffffff, // 默认白色
+  //       side: THREE.DoubleSide, // 双面渲染
+  //     });
+  //   }
+    
+  //   const mesh = new THREE.Mesh(geometry, material);
+  //   mesh.name = layer|| 'default';
+  
+  //   // 应用缩放
+  //   const scaleFactor = options.scaleFactor || { scaleX: 1, scaleY: 1, scaleZ: 1 };
+  //   mesh.scale.set(scaleFactor || 1, scaleFactor|| 1, scaleFactor|| 1);
+  
+  //   // 应用旋转
+  //   const rotationAngle = options.rotationAngle || { x: 0, y: 0, z: 0 };
+  //   mesh.rotation.set(rotationAngle.x || 0, rotationAngle.y || 0, rotationAngle.z || 0);
+    
+  //   // 应用位移
+  //   const position = options.position || { x: 0, y: 0, z: 0 };
+  //   mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
+  
+  //   // 设置渲染顺序
+  //   mesh.renderOrder = 100 - index;
+    
+  //   // 如果有纹理URL，添加纹理
+  //   if (options.textureUrl) {
+  //     this.addTexture(mesh, options.textureUrl, options.textureRepeat);
+  //   }
+    
+  //   return mesh;
+  // }
+    // 创建三角面网格
+    _createTriangleMesh({ vertices, indices, index = 1 }, options = {}, layer) {
+      // 创建几何体
+      const geometry = new THREE.BufferGeometry();
+      
+      // 设置顶点位置
+      geometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(vertices, 3)
+      );
+      
+      // 设置索引
+      geometry.setIndex(indices);
+      
+      // 计算法向量（生成 `normal` 属性）
+      geometry.computeVertexNormals();
+      geometry.computeBoundingBox();
+    
+      // 提取选项参数，设置默认值
+      const {
+        color = 0xffffff,
+        textureUrl = null,
+        textureRepeat = 1,
+        scaleFactor = 1,
+        rotationAngle = { x: 0, y: 0, z: 0 },
+        position = { x: 0, y: 0, z: 0 },
+        edgeColor = 0x333333,
+        edgeOpacity = 0.4,
+        edgeThreshold = 15,
+        flatShading = true,
+        roughness = 0.6,
+        metalness = 0.1,
+        clearcoat = 0.3,
+        clearcoatRoughness = 0.25
+      } = options;
+    
+      // 创建材质 - 使用PhysicalMaterial代替BasicMaterial获得更好的光照效果
+      let material;
+      
+      if (textureUrl) {
+        // 如果有纹理，创建带纹理的物理材质
+        material = new THREE.MeshPhysicalMaterial({
+          side: THREE.DoubleSide,     // 双面渲染
+          flatShading: flatShading,   // 平面着色，保持棱角分明
+          roughness: roughness,       // 控制表面粗糙度
+          metalness: metalness,       // 控制金属感
+          clearcoat: clearcoat,       // 添加清漆效果增强表面亮度
+          clearcoatRoughness: clearcoatRoughness, // 清漆层粗糙度
+          map: null                   // 纹理将在后面加载
+        });
+      } else {
+        // 如果没有纹理，使用指定颜色的物理材质
+        material = new THREE.MeshPhysicalMaterial({
+          color: color,
+          side: THREE.DoubleSide,     // 双面渲染
+          flatShading: flatShading,   // 平面着色，保持棱角分明
+          roughness: roughness,       // 控制表面粗糙度
+          metalness: metalness,       // 控制金属感
+          clearcoat: clearcoat,       // 添加清漆效果增强表面亮度
+          clearcoatRoughness: clearcoatRoughness // 清漆层粗糙度
+        });
+      }
+      
+      // 创建主网格
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.name = layer || 'default';
+    
+      // 创建边缘线几何体和材质，增强三角形边缘
+      const edgesGeometry = new THREE.EdgesGeometry(geometry, edgeThreshold);
+      const edgesMaterial = new THREE.LineBasicMaterial({
+        color: edgeColor,
+        opacity: edgeOpacity,
+        transparent: true,
+        linewidth: 1  // 注意：大多数WebGL实现只支持linewidth=1
       });
-    } else {
-      // 如果没有纹理，使用指定颜色
-      material = new THREE.MeshBasicMaterial({
-        color: options.color || 0xffffff, // 默认白色
-        side: THREE.DoubleSide, // 双面渲染
-      });
+      
+      // 创建边缘线
+      const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+      
+      // 将边缘线添加为主网格的子对象
+      // mesh.add(edges);
+      
+      // 存储边缘线的引用，以便后续可以控制其可见性
+      // mesh.userData.edges = edges;
+    
+      // 应用缩放
+      if (typeof scaleFactor === 'object') {
+        mesh.scale.set(scaleFactor.scaleX || 1, scaleFactor.scaleY || 1, scaleFactor.scaleZ || 1);
+      } else {
+        mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+      }
+    
+      // 应用旋转
+      mesh.rotation.set(rotationAngle.x || 0, rotationAngle.y || 0, rotationAngle.z || 0);
+      
+      // 应用位移
+      mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
+    
+      // 设置渲染顺序
+      mesh.renderOrder = 100 - index;
+      
+      // 如果有纹理URL，添加纹理
+      if (textureUrl) {
+        this.addTexture(mesh, textureUrl, textureRepeat);
+      }
+      
+      return mesh;
     }
-    
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.name = layer|| 'default';
-
-    // 应用缩放
-    const scaleFactor = options.scaleFactor || { scaleX: 1, scaleY: 1, scaleZ: 1 };
-    mesh.scale.set(scaleFactor || 1, scaleFactor|| 1, scaleFactor|| 1);
-
-    // 应用旋转
-    const rotationAngle = options.rotationAngle || { x: 0, y: 0, z: 0 };
-    mesh.rotation.set(rotationAngle.x || 0, rotationAngle.y || 0, rotationAngle.z || 0);
-    
-    // 应用位移
-    const position = options.position || { x: 0, y: 0, z: 0 };
-    mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
-
-    // 设置渲染顺序
-    mesh.renderOrder = 100 - index;
-    
-    // 如果有纹理URL，添加纹理
-    if (options.textureUrl) {
-      this.addTexture(mesh, options.textureUrl, options.textureRepeat);
-    }
-    
-    return mesh;
-  }
 
   // 加载模型
   // 加载模型（异步支持贴图）

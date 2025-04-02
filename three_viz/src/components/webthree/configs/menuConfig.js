@@ -17,9 +17,9 @@ export const menuItems = [
     key: "moveSpeed",
     type: "slider",
     label: "移动速度 (第一人称)",
-    min: 1,
-    max: 20,
-    step: 1,
+    min: 0.05,
+    max: 0.1,
+    step: 0.01,
   },
   {
     key: "lookSpeed",
