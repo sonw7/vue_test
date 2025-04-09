@@ -6,6 +6,7 @@ import { createCompass, createAxes } from './Axes/axesManage';
 import { FirstPersonControls } from 'three/examples/jsm/controls/FirstPersonControls';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { boxUvCom } from '../utils/uvMappingUtils';
+import { ViewHelper } from './ViewHelper/ViewHelper';
 
 class SceneManager {
   constructor(container) {
@@ -42,6 +43,12 @@ class SceneManager {
         lookVertical: true,
       },
     };
+
+    // 新增: ViewHelper实例
+    this.viewHelper = null;
+    this.viewHelperEnabled = true; // 是否启用ViewHelper
+    this.viewHelperRenderer = null; // ViewHelper渲染器
+    this.viewHelperContainer = null; // ViewHelper容器
   }
 
   // 初始化场景
@@ -96,7 +103,61 @@ class SceneManager {
     // 添加交互事件
     this._addInteraction();
 
+    // 创建ViewHelper
+    this._initViewHelper();
+
     this.animate();
+  }
+
+  // 初始化ViewHelper
+  _initViewHelper() {
+    // 创建单独的ViewHelper画布
+    const viewHelperContainer = document.createElement('div');
+    viewHelperContainer.style.position = 'absolute';
+    viewHelperContainer.style.right = '10px';
+    viewHelperContainer.style.bottom = '10px';
+    viewHelperContainer.style.width = '128px';
+    viewHelperContainer.style.height = '128px';
+    viewHelperContainer.style.pointerEvents = 'none'; // 允许点击穿透到下面的元素
+    viewHelperContainer.style.zIndex = '100';
+    this.container.appendChild(viewHelperContainer);
+    
+    // 创建单独的ViewHelper渲染器
+    const viewHelperRenderer = new THREE.WebGLRenderer({ alpha: true });
+    viewHelperRenderer.setSize(128, 128);
+    viewHelperRenderer.setClearColor(0x000000, 0); // 透明背景
+    viewHelperContainer.appendChild(viewHelperRenderer.domElement);
+    
+    // 为ViewHelper渲染器设置鼠标事件
+    viewHelperRenderer.domElement.style.pointerEvents = 'auto'; // 恢复鼠标事件
+    
+    // 创建ViewHelper实例
+    this.viewHelper = new ViewHelper(this.camera, viewHelperRenderer.domElement);
+    this.viewHelper.setLabels('X', 'Y', 'Z');
+    
+    // 存储渲染器引用
+    this.viewHelperRenderer = viewHelperRenderer;
+    this.viewHelperContainer = viewHelperContainer;
+    
+    // 添加ViewHelper点击事件处理
+    viewHelperRenderer.domElement.addEventListener('pointerdown', (event) => {
+      if (this.viewHelperEnabled) {
+        // 修改事件坐标以适应ViewHelper渲染器的大小
+        const rect = viewHelperRenderer.domElement.getBoundingClientRect();
+        const adjustedEvent = {
+          clientX: event.clientX,
+          clientY: event.clientY,
+          preventDefault: event.preventDefault,
+          stopPropagation: event.stopPropagation
+        };
+        
+        const handled = this.viewHelper.handleClick(adjustedEvent);
+        if (handled) {
+          event.stopPropagation();
+          event.preventDefault();
+        }
+      }
+    });
   }
 
   // 创建信息提示框
@@ -134,7 +195,22 @@ class SceneManager {
     // 执行射线检测
     this._checkRaycasterIntersection();
 
+    // 渲染主场景
     this.renderer.render(this.scene, this.camera);
+    
+    // 单独渲染ViewHelper
+    if (this.viewHelperEnabled && this.viewHelper && this.viewHelperRenderer) {
+      // 让ViewHelper观察相机方向
+      this.viewHelper.update(0.01);
+      
+      // 如果ViewHelper正在动画中，更新相机位置
+      if (this.viewHelper.animating) {
+        this.viewHelper.update(0.01);
+      }
+      
+      // 渲染ViewHelper
+      this.viewHelperRenderer.render(this.viewHelper, this.viewHelper.orthoCamera);
+    }
   }
 
   // 新增: 射线检测方法
@@ -963,6 +1039,23 @@ class SceneManager {
     if (this.firstPersonControls) this.firstPersonControls.dispose();
     if (this.transformControls) this.transformControls.dispose();
 
+    // 处理ViewHelper资源
+    if (this.viewHelper) {
+      this.viewHelper.dispose();
+      this.viewHelper = null;
+    }
+    
+    // 清理ViewHelper渲染器
+    if (this.viewHelperRenderer) {
+      this.viewHelperRenderer.dispose();
+      this.viewHelperRenderer = null;
+    }
+    
+    // 移除ViewHelper容器
+    if (this.viewHelperContainer && this.viewHelperContainer.parentNode) {
+      this.viewHelperContainer.parentNode.removeChild(this.viewHelperContainer);
+    }
+
     // 移除信息提示框
     if (this.infoTooltip && this.infoTooltip.parentNode) {
       this.infoTooltip.parentNode.removeChild(this.infoTooltip);
@@ -1017,6 +1110,65 @@ class SceneManager {
     this.render();
 
     console.log('Camera reset to position:', position, 'looking at:', lookAt);
+  }
+
+  /**
+   * 设置ViewHelper可见性
+   * @param {boolean} visible - 是否可见
+   */
+  setViewHelperVisible(visible) {
+    this.viewHelperEnabled = visible;
+    if (this.viewHelperContainer) {
+      this.viewHelperContainer.style.display = visible ? 'block' : 'none';
+    }
+  }
+
+  /**
+   * 通过ViewHelper切换到指定视角
+   * @param {string} view - 视角名称 ('top', 'bottom', 'front', 'back', 'left', 'right')
+   */
+  switchToView(view) {
+    if (!this.viewHelper) return;
+    
+    // 创建一个模拟点击事件
+    const event = {
+      clientX: 0,
+      clientY: 0
+    };
+    
+    // 根据视角名称选择对应的辅助对象
+    const viewMap = {
+      'right': 'posX',
+      'left': 'negX',
+      'top': 'posY',
+      'bottom': 'negY',
+      'front': 'posZ',
+      'back': 'negZ'
+    };
+    
+    // 找到对应的ViewHelper子对象
+    const children = this.viewHelper.children;
+    let targetObject = null;
+    
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      if (child.userData && child.userData.type === viewMap[view]) {
+        targetObject = child;
+        break;
+      }
+    }
+    
+    if (targetObject) {
+      // 模拟点击对应的辅助对象
+      const prepareAnimationData = this.viewHelper.prepareAnimationData || 
+                                 function(obj, center) {
+                                   // 简易版本，如果无法访问原始方法
+                                   this.animating = true;
+                                 }.bind(this.viewHelper);
+                                 
+      prepareAnimationData(targetObject, this.viewHelper.center);
+      this.viewHelper.animating = true;
+    }
   }
 }
 
