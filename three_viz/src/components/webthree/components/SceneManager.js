@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
-import { createCompass,createAxes} from '../utils/axesManage'
+import { createCompass, createAxes } from './Axes/axesManage';
 import { FirstPersonControls } from 'three/examples/jsm/controls/FirstPersonControls';
-import  {FontLoader}  from 'three/examples/jsm/loaders/FontLoader.js'
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { boxUvCom } from '../utils/uvMappingUtils';
 
 class SceneManager {
@@ -23,7 +23,7 @@ class SceneManager {
     this.currentControl = 'orbit'; // 当前使用的控制器类型
     this.fontLoader = new FontLoader();
     this.textureCache = new Map(); // 用于缓存已加载的纹理
-    
+
     // 新增: 用于射线检测和信息显示
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
@@ -56,12 +56,12 @@ class SceneManager {
       1000
     );
     // this.camera.position.set(0, 0, 5);
-    this.camera.position.set(65, 30, 10)
-    this.camera.lookAt(0, 0, 25)
+    this.camera.position.set(65, 30, 10);
+    this.camera.lookAt(0, 0, 25);
     this.renderer = new THREE.WebGLRenderer();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.container.appendChild(this.renderer.domElement);
-  
+
     // 初始化控制器
     this._initOrbitControls();
     this._initFirstPersonControls();
@@ -74,18 +74,28 @@ class SceneManager {
     this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
     this.transformControls.addEventListener('change', () => this.render());
     // this.scene.add(this.transformControls);
-    createAxes(this.scene, this.fontLoader, -50 ,-50,-8,70,30,4);
-    createCompass(-80,35,-20,5,0,this.scene, this.fontLoader);//指北针
+
+    // 使用优化后的参数结构创建坐标系和指北针
+    createAxes(this.scene, this.fontLoader, {
+      origin: { x: -50, y: -50, z: -8 },
+      end: { x: 70, y: 30, z: 4 }
+    });
+
+    createCompass(this.scene, this.fontLoader, {
+      position: { x: -80, y: 35, z: -20 },
+      size: 5,
+      rotation: 0
+    });
 
     // 初始化灯光
     this.initLights();
-    
+
     // 创建信息提示框
     this._createInfoTooltip();
-    
+
     // 添加交互事件
     this._addInteraction();
-        
+
     this.animate();
   }
 
@@ -105,7 +115,7 @@ class SceneManager {
     this.infoTooltip.style.transition = 'opacity 0.2s';
     this.infoTooltip.style.whiteSpace = 'nowrap';
     this.infoTooltip.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
-    
+
     // 添加到容器中
     this.container.appendChild(this.infoTooltip);
   }
@@ -126,34 +136,34 @@ class SceneManager {
 
     this.renderer.render(this.scene, this.camera);
   }
-  
+
   // 新增: 射线检测方法
   _checkRaycasterIntersection() {
     // 只在有鼠标位置数据时执行
     if (this.mouse.x !== undefined && this.mouse.y !== undefined) {
       this.raycaster.setFromCamera(this.mouse, this.camera);
-      
+
       // 获取所有可能的对象
       const allObjects = [];
       this.dataLayers.forEach(objects => {
         allObjects.push(...objects);
       });
-      
+
       const intersects = this.raycaster.intersectObjects(allObjects, true);
-      
+
       if (intersects.length > 0) {
         // 找到最近的对象
         const intersectedObject = intersects[0].object;
-        
+
         // 如果对象有name属性，显示提示框
         if (intersectedObject.name && intersectedObject.name !== 'default') {
           // 如果悬停对象变化，更新提示框内容
           if (this.hoveredObject !== intersectedObject) {
             this.hoveredObject = intersectedObject;
-            
+
             // 更新提示框内容
             this._updateTooltip(intersectedObject.name);
-            
+
             // 显示提示框
             this.infoTooltip.style.display = 'block';
             this.infoTooltip.style.opacity = '1';
@@ -170,21 +180,21 @@ class SceneManager {
       }
     }
   }
-  
+
   // 新增: 更新提示框内容和位置
   _updateTooltip(name) {
     // 更新提示框内容
     this.infoTooltip.textContent = name;
-    
+
     // 获取鼠标在屏幕上的位置
     const mouseX = (this.mouse.x + 1) / 2 * window.innerWidth;
     const mouseY = (1 - (this.mouse.y + 1) / 2) * window.innerHeight;
-    
+
     // 设置提示框位置，稍微偏移以避免遮挡鼠标
     this.infoTooltip.style.left = (mouseX + 15) + 'px';
     this.infoTooltip.style.top = (mouseY - 15) + 'px';
   }
-  
+
   // 新增: 隐藏提示框
   _hideTooltip() {
     if (this.infoTooltip) {
@@ -198,31 +208,11 @@ class SceneManager {
     }
   }
 
-  // initLights() {
-  //   // 环境光
-  //   const ambientLight = new THREE.AmbientLight(0x404040); // 柔和的白光
-  //   this.scene.add(ambientLight);
-
-  //   // 方向光 1
-  //   const directLight1 = new THREE.DirectionalLight(0xffffff, 0.5);
-  //   directLight1.position.set(100, -150, -100);
-  //   this.scene.add(directLight1);
-
-  //   // 方向光 2
-  //   const directLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-  //   directLight2.position.set(200, -10, 90);
-  //   this.scene.add(directLight2);
-
-  //   // 点光源
-  //   const pointLight = new THREE.PointLight(0xffffff, 1);
-  //   pointLight.position.set(-13, 150, 10);
-  //   this.scene.add(pointLight);
-  // }
   initLights() {
     // 环境光 - 显著增强环境光强度
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // 增强环境光强度和亮度
     this.scene.add(ambientLight);
-  
+
     // 半球光 - 添加半球光让顶部和底部都能得到照明
     const hemisphereLight = new THREE.HemisphereLight(
       0xffffff, // 天空颜色
@@ -231,42 +221,42 @@ class SceneManager {
     );
     hemisphereLight.position.set(0, 200, 0);
     this.scene.add(hemisphereLight);
-  
+
     // 方向光 1 - 从顶部照射
     const directLight1 = new THREE.DirectionalLight(0xffffff, 0.5);
     directLight1.position.set(0, 200, 100);
     directLight1.castShadow = true; // 启用阴影
     this.scene.add(directLight1);
-  
+
     // 方向光 2 - 从侧面照射
     const directLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
     directLight2.position.set(100, 50, -100);
     this.scene.add(directLight2);
-  
+
     // 方向光 3 - 从另一侧面照射
     const directLight3 = new THREE.DirectionalLight(0xffffff, 0.4);
     directLight3.position.set(-100, 50, -100);
     this.scene.add(directLight3);
-  
+
     // 点光源 - 更强并靠近模型中心
     const pointLight = new THREE.PointLight(0xffffff, 1.0, 500);
     pointLight.position.set(0, 100, 0);
     this.scene.add(pointLight);
-  
+
     // 可选：添加灯光辅助器用于调试
     // this.scene.add(new THREE.DirectionalLightHelper(directLight1, 10));
     // this.scene.add(new THREE.DirectionalLightHelper(directLight2, 10));
     // this.scene.add(new THREE.DirectionalLightHelper(directLight3, 10));
     // this.scene.add(new THREE.PointLightHelper(pointLight, 10));
   }
-  
+
   // 初始化 OrbitControls
   _initOrbitControls() {
     this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
     this.orbitControls.enableDamping = this.controlParams.orbit.enableDamping;
     this.orbitControls.dampingFactor = this.controlParams.orbit.dampingFactor;
   }
-  
+
   // 初始化 FirstPersonControls
   _initFirstPersonControls() {
     this.firstPersonControls = new FirstPersonControls(this.camera, this.renderer.domElement);
@@ -275,7 +265,7 @@ class SceneManager {
     this.firstPersonControls.noFly = this.controlParams.firstPerson.noFly;
     this.firstPersonControls.lookVertical = this.controlParams.firstPerson.lookVertical;
   }
-  
+
   // 切换控制器
   switchControl(controlType) {
     if (controlType === 'orbit') {
@@ -291,21 +281,21 @@ class SceneManager {
   _useOrbitControls() {
     this.currentControl = 'orbit';
     this.firstPersonControls.enabled = false;
-    
+
     // 如果有保存的相机状态，恢复它
     if (this._savedCameraState) {
       this.camera.position.copy(this._savedCameraState.position);
       this.orbitControls.target.copy(this._savedCameraState.target);
-      
+
       // 恢复相机的近裁面和远裁面
       this.camera.near = this._savedCameraState.near;
       this.camera.far = this._savedCameraState.far;
       this.camera.updateProjectionMatrix(); // 重要：更新投影矩阵
     }
-    
+
     this.orbitControls.enabled = true;
     this.orbitControls.update();
-    
+
     console.log('轨道控制器已启用，相机近裁面距离恢复为:', this.camera.near);
   }
 
@@ -313,7 +303,7 @@ class SceneManager {
   _useFirstPersonControls() {
     this.currentControl = 'firstPerson';
     this.orbitControls.enabled = false;
-    
+
     // 保存当前相机位置和投影参数，以便切换回轨道控制器时可以恢复
     if (!this._savedCameraState) {
       this._savedCameraState = {
@@ -323,30 +313,30 @@ class SceneManager {
         far: this.camera.far
       };
     }
-    
+
     // 将相机重置到原点或指定的起始位置
     const startPosition = { x: 0.6, y: -1.25, z: 0 }; // y=2 让相机略高于地面，像人眼高度
     this.camera.position.set(startPosition.x, startPosition.y, startPosition.z);
-    
+
     // 设置相机朝向 (例如，朝向z轴正方向)
     const lookDirection = { x: 0, y: 2, z: 10 };
     this.camera.lookAt(lookDirection.x, lookDirection.y, lookDirection.z);
-    
+
     // 调整相机的近裁面和远裁面
     this.camera.near = 0.01; // 设置非常近的近裁面，可以看到很近的物体
     this.camera.far = 1000;  // 根据场景大小调整远裁面
     this.camera.updateProjectionMatrix(); // 重要：更新投影矩阵
-    
+
     // 确保应用当前的参数设置
     this.firstPersonControls.lookSpeed = this.controlParams.firstPerson.lookSpeed;
     this.firstPersonControls.movementSpeed = this.controlParams.firstPerson.movementSpeed;
-    
+
     // 重新设置第一人称控制器的目标点
     this.firstPersonControls.lookAt(lookDirection.x, lookDirection.y, lookDirection.z);
-    
+
     // 启用控制器
     this.firstPersonControls.enabled = true;
-    
+
     console.log('第一人称控制器已启用，相机位置重置为:', startPosition,
                 '近裁面距离:', this.camera.near,
                 '旋转速度:', this.firstPersonControls.lookSpeed, 
@@ -362,13 +352,13 @@ class SceneManager {
     } else if (controlType === 'firstPerson' && this.firstPersonControls) {
       // 更新参数对象
       Object.assign(this.controlParams.firstPerson, params);
-      
+
       // 应用参数到控制器
       this.firstPersonControls.lookSpeed = this.controlParams.firstPerson.lookSpeed;
       this.firstPersonControls.movementSpeed = this.controlParams.firstPerson.movementSpeed;
       this.firstPersonControls.noFly = this.controlParams.firstPerson.noFly;
       this.firstPersonControls.lookVertical = this.controlParams.firstPerson.lookVertical;
-      
+
       console.log('第一人称控制器参数已更新:', 
                   '旋转速度:', this.firstPersonControls.lookSpeed, 
                   '移动速度:', this.firstPersonControls.movementSpeed);
@@ -376,7 +366,7 @@ class SceneManager {
       console.warn('Unsupported control type or invalid parameters:', controlType, params);
     }
   }
-  
+
   // 添加交互事件
   _addInteraction() {
     const raycaster = new THREE.Raycaster();
@@ -406,14 +396,14 @@ class SceneManager {
 
       this.render();
     });
-    
+
     // 鼠标移动事件 - 用于显示提示框
     this.container.addEventListener('mousemove', (event) => {
       const rect = this.container.getBoundingClientRect();
       this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     });
-    
+
     // 鼠标离开容器时隐藏提示框
     this.container.addEventListener('mouseleave', () => {
       this._hideTooltip();
@@ -444,16 +434,16 @@ class SceneManager {
       case 'custom': // 自定义渲染
         object = options.renderFunction?.(data, THREE);
         break;
-        
+
       case 'triangleMesh': // 三角面数据
         object = this._createTriangleMesh(data, options, layer);
         break;
-        
+
       default:
         console.warn('Unsupported data type:', type);
         return;
     }
-    
+
     if (object) {
       // 添加对象到场景并分层管理
       this._addToLayer(layer, object);
@@ -461,7 +451,7 @@ class SceneManager {
     }
     return null;
   }
-  
+
   // 在 SceneManager.js 中添加此方法
   // 在 SceneManager.js 中修改 getMeshByUuid 方法
   /**
@@ -475,7 +465,7 @@ class SceneManager {
       console.warn('getMeshByUuid: uuid parameter is required');
       return null;
     }
-    
+
     // 正确遍历 Map 对象
     for (const [layerName, meshes] of this.layers.entries()) {
       // 确保 meshes 是一个数组
@@ -487,11 +477,11 @@ class SceneManager {
         }
       }
     }
-    
+
     // 如果没有找到匹配的网格
     return null;
   }
-  
+
   // 移除数据
   removeData(layer) {
     if (this.dataLayers.has(layer)) {
@@ -505,11 +495,11 @@ class SceneManager {
       this.dataLayers.delete(layer);
     }
   }
-  
+
   render() {
     this.renderer.render(this.scene, this.camera);
   }
-  
+
   // 获取所有 key 的数组
   getKeysArray() {
     // 使用扩展运算符将 Map 的 key 迭代器转换为数组
@@ -517,7 +507,7 @@ class SceneManager {
     // 或者使用 Array.from：
     // return Array.from(this.dataLayers.keys());
   }
-  
+
   /**
    * 根据图层名称获取所有 Mesh 对象
    * @param {string} layer 图层名称
@@ -531,11 +521,11 @@ class SceneManager {
       return [];
     }
   }
-  
+
   //更新贴图
   replaceTexture(mesh, textureUrl) {
     const textureLoader = new THREE.TextureLoader();
-  
+
     // 加载新贴图
     textureLoader.load(textureUrl, (texture) => {
       if (mesh.material.map) {
@@ -545,13 +535,13 @@ class SceneManager {
       mesh.material.needsUpdate = true; // 确保更新材质
     });
   }
-  
+
   // 更新数据
   updateData(layer, newData, options = {}) {
     this.removeData(layer);
     this.addModel({ type: options.type, data: newData, layer, options });
   }
-  
+
   // 创建点云
   _createPointCloud(points, { color = 0x00ff00, size = 0.1, position = { x: 0, y: 0, z: 0 } }) {
     const geometry = new THREE.BufferGeometry();
@@ -559,10 +549,10 @@ class SceneManager {
 
     const material = new THREE.PointsMaterial({ color, size });
     const pointCloud = new THREE.Points(geometry, material);
-    
+
     // 应用位移
     pointCloud.position.set(position.x || 0, position.y || 0, position.z || 0);
-    
+
     return pointCloud;
   }
 
@@ -591,7 +581,7 @@ class SceneManager {
 
     // 应用旋转
     mesh.rotation.set(rotation.x || 0, rotation.y || 0, rotation.z || 0);
-    
+
     // 应用位移
     mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
 
@@ -600,170 +590,120 @@ class SceneManager {
     return mesh;
   }
 
-  // // 创建三角面网格
-  // _createTriangleMesh({ vertices, indices, index = 1 }, options = {}, layer) {
-  //   const geometry = new THREE.BufferGeometry();
-  //   // 设置顶点位置
-  //   geometry.setAttribute(
-  //     'position',
-  //     new THREE.Float32BufferAttribute(vertices, 3)
-  //   );
-  //   // 设置索引
-  //   geometry.setIndex(indices);
-  //   // 计算法向量（生成 `normal` 属性）
-  //   geometry.computeVertexNormals();
-  //   geometry.computeBoundingBox();
-  
-  //   // 创建材质 - 根据是否有纹理来决定材质属性
-  //   let material;
-  //   if (options.textureUrl) {
-  //     // 如果有纹理，创建不影响纹理颜色的材质
-  //     material = new THREE.MeshBasicMaterial({
-  //       color: options.color || 0xd4d6db, // 白色不会影响纹理颜色
-  //       side: THREE.DoubleSide, // 双面渲染
-  //       map: null // 纹理将在 addTexture 方法中加载和设置
-  //     });
-  //   } else {
-  //     // 如果没有纹理，使用指定颜色
-  //     material = new THREE.MeshBasicMaterial({
-  //       color: options.color || 0xffffff, // 默认白色
-  //       side: THREE.DoubleSide, // 双面渲染
-  //     });
-  //   }
-    
-  //   const mesh = new THREE.Mesh(geometry, material);
-  //   mesh.name = layer|| 'default';
-  
-  //   // 应用缩放
-  //   const scaleFactor = options.scaleFactor || { scaleX: 1, scaleY: 1, scaleZ: 1 };
-  //   mesh.scale.set(scaleFactor || 1, scaleFactor|| 1, scaleFactor|| 1);
-  
-  //   // 应用旋转
-  //   const rotationAngle = options.rotationAngle || { x: 0, y: 0, z: 0 };
-  //   mesh.rotation.set(rotationAngle.x || 0, rotationAngle.y || 0, rotationAngle.z || 0);
-    
-  //   // 应用位移
-  //   const position = options.position || { x: 0, y: 0, z: 0 };
-  //   mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
-  
-  //   // 设置渲染顺序
-  //   mesh.renderOrder = 100 - index;
-    
-  //   // 如果有纹理URL，添加纹理
-  //   if (options.textureUrl) {
-  //     this.addTexture(mesh, options.textureUrl, options.textureRepeat);
-  //   }
-    
-  //   return mesh;
-  // }
-    // 创建三角面网格
-    _createTriangleMesh({ vertices, indices, index = 1 }, options = {}, layer) {
-      // 创建几何体
-      const geometry = new THREE.BufferGeometry();
-      
-      // 设置顶点位置
-      geometry.setAttribute(
-        'position',
-        new THREE.Float32BufferAttribute(vertices, 3)
-      );
-      
-      // 设置索引
-      geometry.setIndex(indices);
-      
-      // 计算法向量（生成 `normal` 属性）
-      geometry.computeVertexNormals();
-      geometry.computeBoundingBox();
-    
-      // 提取选项参数，设置默认值
-      const {
-        color = 0xffffff,
-        textureUrl = null,
-        textureRepeat = 1,
-        scaleFactor = 1,
-        rotationAngle = { x: 0, y: 0, z: 0 },
-        position = { x: 0, y: 0, z: 0 },
-        edgeColor = 0x333333,
-        edgeOpacity = 0.4,
-        edgeThreshold = 15,
-        flatShading = true,
-        roughness = 0.6,
-        metalness = 0.1,
-        clearcoat = 0.3,
-        clearcoatRoughness = 0.25
-      } = options;
-    
-      // 创建材质 - 使用PhysicalMaterial代替BasicMaterial获得更好的光照效果
-      let material;
-      
-      if (textureUrl) {
-        // 如果有纹理，创建带纹理的物理材质
-        material = new THREE.MeshPhysicalMaterial({
-          side: THREE.DoubleSide,     // 双面渲染
-          flatShading: flatShading,   // 平面着色，保持棱角分明
-          roughness: roughness,       // 控制表面粗糙度
-          metalness: metalness,       // 控制金属感
-          clearcoat: clearcoat,       // 添加清漆效果增强表面亮度
-          clearcoatRoughness: clearcoatRoughness, // 清漆层粗糙度
-          map: null                   // 纹理将在后面加载
-        });
-      } else {
-        // 如果没有纹理，使用指定颜色的物理材质
-        material = new THREE.MeshPhysicalMaterial({
-          color: color,
-          side: THREE.DoubleSide,     // 双面渲染
-          flatShading: flatShading,   // 平面着色，保持棱角分明
-          roughness: roughness,       // 控制表面粗糙度
-          metalness: metalness,       // 控制金属感
-          clearcoat: clearcoat,       // 添加清漆效果增强表面亮度
-          clearcoatRoughness: clearcoatRoughness // 清漆层粗糙度
-        });
-      }
-      
-      // 创建主网格
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.name = layer || 'default';
-    
-      // 创建边缘线几何体和材质，增强三角形边缘
-      const edgesGeometry = new THREE.EdgesGeometry(geometry, edgeThreshold);
-      const edgesMaterial = new THREE.LineBasicMaterial({
-        color: edgeColor,
-        opacity: edgeOpacity,
-        transparent: true,
-        linewidth: 1  // 注意：大多数WebGL实现只支持linewidth=1
+  // 创建三角面网格
+  _createTriangleMesh({ vertices, indices, index = 1 }, options = {}, layer) {
+    // 创建几何体
+    const geometry = new THREE.BufferGeometry();
+
+    // 设置顶点位置
+    geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(vertices, 3)
+    );
+
+    // 设置索引
+    geometry.setIndex(indices);
+
+    // 计算法向量（生成 `normal` 属性）
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+
+    // 提取选项参数，设置默认值
+    const {
+      color = 0xffffff,
+      textureUrl = null,
+      textureRepeat = 1,
+      scaleFactor = 1,
+      rotationAngle = { x: 0, y: 0, z: 0 },
+      position = { x: 0, y: 0, z: 0 },
+      edgeColor = 0x333333,
+      edgeOpacity = 0.4,
+      edgeThreshold = 15,
+      flatShading = true,
+      roughness = 0.6,
+      metalness = 0.1,
+      clearcoat = 0.3,
+      clearcoatRoughness = 0.25
+    } = options;
+
+    // 创建材质 - 使用PhysicalMaterial代替BasicMaterial获得更好的光照效果
+    let material;
+
+    // 岩石材质参数
+    const rockRoughness = 0.9;        // 增加粗糙度，减少反光
+    const rockMetalness = 0.05;       // 降低金属感，岩石几乎没有金属特性
+    const rockClearcoat = 0.1;        // 减少清漆效果，岩石不应太有光泽
+    const rockClearcoatRoughness = 0.8; // 增加清漆层粗糙度
+
+    if (textureUrl) {
+      // 如果有纹理，创建带纹理的物理材质
+      material = new THREE.MeshPhysicalMaterial({
+        side: THREE.DoubleSide,     // 双面渲染
+        flatShading: flatShading,   // 平面着色，保持棱角分明
+        roughness: rockRoughness,   // 增加表面粗糙度
+        metalness: rockMetalness,   // 降低金属感
+        clearcoat: rockClearcoat,   // 减少清漆效果
+        clearcoatRoughness: rockClearcoatRoughness, // 增加清漆层粗糙度
+        map: null                   // 纹理将在后面加载
       });
-      
-      // 创建边缘线
-      const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
-      
-      // 将边缘线添加为主网格的子对象
-      // mesh.add(edges);
-      
-      // 存储边缘线的引用，以便后续可以控制其可见性
-      // mesh.userData.edges = edges;
-    
-      // 应用缩放
-      if (typeof scaleFactor === 'object') {
-        mesh.scale.set(scaleFactor.scaleX || 1, scaleFactor.scaleY || 1, scaleFactor.scaleZ || 1);
-      } else {
-        mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
-      }
-    
-      // 应用旋转
-      mesh.rotation.set(rotationAngle.x || 0, rotationAngle.y || 0, rotationAngle.z || 0);
-      
-      // 应用位移
-      mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
-    
-      // 设置渲染顺序
-      mesh.renderOrder = 100 - index;
-      
-      // 如果有纹理URL，添加纹理
-      if (textureUrl) {
-        this.addTexture(mesh, textureUrl, textureRepeat);
-      }
-      
-      return mesh;
+    } else {
+      // 如果没有纹理，使用指定颜色的物理材质
+      material = new THREE.MeshPhysicalMaterial({
+        color: color,
+        side: THREE.DoubleSide,     // 双面渲染
+        flatShading: flatShading,   // 平面着色，保持棱角分明
+        roughness: rockRoughness,   // 增加表面粗糙度
+        metalness: rockMetalness,   // 降低金属感
+        clearcoat: rockClearcoat,   // 减少清漆效果
+        clearcoatRoughness: rockClearcoatRoughness // 增加清漆层粗糙度
+      });
     }
+
+    // 创建主网格
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = layer || 'default';
+
+    // 创建边缘线几何体和材质，增强三角形边缘
+    const edgesGeometry = new THREE.EdgesGeometry(geometry, edgeThreshold);
+    const edgesMaterial = new THREE.LineBasicMaterial({
+      color: edgeColor,
+      opacity: edgeOpacity,
+      transparent: true,
+      linewidth: 1  // 注意：大多数WebGL实现只支持linewidth=1
+    });
+
+    // 创建边缘线
+    const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+
+    // 将边缘线添加为主网格的子对象
+    // mesh.add(edges);
+
+    // 存储边缘线的引用，以便后续可以控制其可见性
+    // mesh.userData.edges = edges;
+
+    // 应用缩放
+    if (typeof scaleFactor === 'object') {
+      mesh.scale.set(scaleFactor.scaleX || 1, scaleFactor.scaleY || 1, scaleFactor.scaleZ || 1);
+    } else {
+      mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+    }
+
+    // 应用旋转
+    mesh.rotation.set(rotationAngle.x || 0, rotationAngle.y || 0, rotationAngle.z || 0);
+
+    // 应用位移
+    mesh.position.set(position.x || 0, position.y || 0, position.z || 0);
+
+    // 设置渲染顺序
+    mesh.renderOrder = 100 - index;
+
+    // 如果有纹理URL，添加纹理
+    if (textureUrl) {
+      this.addTexture(mesh, textureUrl, textureRepeat);
+    }
+
+    return mesh;
+  }
 
   // 加载模型
   // 加载模型（异步支持贴图）
@@ -798,7 +738,7 @@ class SceneManager {
       );
     });
   }
-  
+
   /**
    * 添加已创建的 mesh 到场景并应用变换
    * @param {THREE.Object3D} mesh - 要添加的 Three.js 对象
@@ -817,7 +757,7 @@ class SceneManager {
     }
 
     const layer = options.layer || 'default';
-    mesh.name = layer|| 'default';
+    mesh.name = layer || 'default';
 
     // 应用位置（如果尚未应用）
     if (options.position && (!mesh.userData.positionApplied)) {
@@ -828,7 +768,7 @@ class SceneManager {
       );
       mesh.userData.positionApplied = true;
     }
-    
+
     // 应用旋转（如果尚未应用）
     if (options.rotation && (!mesh.userData.rotationApplied)) {
       mesh.rotation.set(
@@ -838,7 +778,7 @@ class SceneManager {
       );
       mesh.userData.rotationApplied = true;
     }
-    
+
     // 应用缩放（如果尚未应用）
     if (options.scale !== undefined && (!mesh.userData.scaleApplied)) {
       if (typeof options.scale === 'number') {
@@ -854,14 +794,14 @@ class SceneManager {
       }
       mesh.userData.scaleApplied = true;
     }
-    
+
     // 如果有材质和贴图URL，应用贴图
     if (options.textureUrl && mesh.material) {
       this.addTexture(mesh, options.textureUrl);
     }
     // 添加到指定图层
     this._addToLayer(layer, mesh);
-    
+
     // 返回图层名和对象引用
     return { layer, object: mesh };
   }
@@ -874,35 +814,35 @@ class SceneManager {
     this.dataLayers.get(layer).push(object);
     this.scene.add(object);
   }
-  
+
   //渲染钻孔
-  renderDrill(drill, colorFunction,options) {
-    console.log("渲染的钻孔数据",drill)
-    const { name="unkown", zkx, zky, xyz } = drill; // 解构钻孔数据
+  renderDrill(drill, colorFunction, options) {
+    console.log("渲染的钻孔数据", drill);
+    const { name = "unkown", zkx, zky, xyz } = drill; // 解构钻孔数据
     const drillMeshes = new THREE.Group();; // 存储每段钻孔的几何体 
     const scaleFactor = options.scaleFactor || {}; // 默认不缩放
     // 遍历深度数组，渲染每一段钻孔
     for (let i = 0; i < xyz.length - 1; i++) {
-      const depth1 = xyz[i]*0.01;
-      const depth2 = xyz[i + 1]*0.01;
-  
+      const depth1 = xyz[i] * 0.01;
+      const depth2 = xyz[i + 1] * 0.01;
+
       // 跳过无效或零深度差的段
       if (depth1 === 99.99 || depth2 === 99.99 || depth1 === depth2) {
         continue;
       }
-  
+
       // 计算段的长度和中点位置
       const segmentLength = Math.abs(depth2 - depth1);
       const segmentCenter = (depth1 + depth2) / 2;
-  
+
       // 创建圆柱体几何体
       const geometry = new THREE.CylinderGeometry(1, 1, segmentLength, 32);
-  
+
       // 设置材质颜色
       const material = new THREE.MeshBasicMaterial({
         color: colorFunction(i), // 动态颜色（基于层级）
       });
-  
+
       // 创建网格
       const cylinder = new THREE.Mesh(geometry, material);
       // cylinder.scale.set(scaleFactor.scaleX||1, scaleFactor.scaleY||1, scaleFactor.scaleZ||1);
@@ -910,13 +850,13 @@ class SceneManager {
       // 设置圆柱体的位置
       // cylinder.position.set(zkx, segmentCenter, zky);
       cylinder.position.set(10, segmentCenter, 10);
-  
+
       // 设置初始可见性（如果需要）
       // cylinder.visible = false;
-  
+
       // 添加到场景
       // this.scene.add(cylinder);
-  
+
       // 存储到数组中
       drillMeshes.add(cylinder);
     }
@@ -928,8 +868,8 @@ class SceneManager {
     // 返回所有生成的网格（便于后续控制）
     return drillMeshes;
   }
-  
-  addTexture(mesh, textureUrl,textureRepeat) {
+
+  addTexture(mesh, textureUrl, textureRepeat) {
     // 在 SceneManager 类中添加纹理缓存
 
     // 检查缓存中是否已有该纹理
@@ -942,9 +882,9 @@ class SceneManager {
       mesh.material.needsUpdate = true;
       return;
     }
-    
+
     const textureLoader = new THREE.TextureLoader();
-  
+
     // 加载新贴图
     textureLoader.load(textureUrl, (texture) => {
       this.textureCache.set(textureUrl, texture);
@@ -954,18 +894,18 @@ class SceneManager {
         // 获取顶点位置和法向量
         const positionAttribute = mesh.geometry.getAttribute('position');
         const normalAttribute = mesh.geometry.getAttribute('normal');
-  
+
         if (!positionAttribute || !normalAttribute) {
           console.error("无法计算 UV：缺少 position 或 normal 属性");
           return;
         }
-  
+
         // 计算 UV
         const boundingBox = mesh.geometry.boundingBox || mesh.geometry.computeBoundingBox();
         const uvArray = boxUvCom(
-          positionAttribute, 
-          normalAttribute, 
-          boundingBox.max, 
+          positionAttribute,
+          normalAttribute,
+          boundingBox.max,
           boundingBox.min
         );
 
@@ -980,22 +920,22 @@ class SceneManager {
           );
         }
       }
-  
+
       // 替换纹理
       if (mesh.material.map) {
         mesh.material.map.dispose(); // 释放旧贴图
       }
       mesh.material.map = texture; // 应用新贴图
       mesh.material.needsUpdate = true; // 确保更新材质
-  
+
       // 可选：设置纹理属性
-      texture.repeat.set(textureRepeat,textureRepeat)
+      texture.repeat.set(textureRepeat, textureRepeat);
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
       // texture.anisotropy = mesh.material.map.anisotropy || 16; // 启用各向异性过滤
     });
   }
-  
+
   // 处理窗口大小变化
   onWindowResize() {
     if (this.camera && this.renderer) {
@@ -1032,7 +972,7 @@ class SceneManager {
     this.camera = null;
     this.renderer = null;
   }
-  
+
   /**
    * 重置相机位置和控制器
    * @param {Object} options - 重置选项
@@ -1044,18 +984,18 @@ class SceneManager {
     // 默认相机位置和朝向
     const defaultPosition = { x: 65, y: 30, z: 10 };
     const defaultLookAt = { x: 0, y: 0, z: 0 };
-    
+
     // 使用提供的选项或默认值
     const position = options.position || defaultPosition;
     const lookAt = options.lookAt || defaultLookAt;
     const resetControls = options.resetControls !== undefined ? options.resetControls : true;
-    
+
     // 重置相机位置
     this.camera.position.set(position.x, position.y, position.z);
-    
+
     // 重置相机朝向
     this.camera.lookAt(lookAt.x, lookAt.y, lookAt.z);
-    
+
     // 如果需要，重置控制器
     if (resetControls) {
       if (this.currentControl === 'orbit' && this.orbitControls) {
@@ -1067,15 +1007,15 @@ class SceneManager {
         this.firstPersonControls.lookAt(lookAt.x, lookAt.y, lookAt.z);
       }
     }
-    
+
     // 更新变换控制器（如果有选中对象）
     if (this.transformControls && this.selectedObject) {
       this.transformControls.update();
     }
-    
+
     // 立即渲染一次，以显示新的视图
     this.render();
-    
+
     console.log('Camera reset to position:', position, 'looking at:', lookAt);
   }
 }
