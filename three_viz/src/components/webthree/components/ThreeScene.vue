@@ -25,6 +25,8 @@ import { processData } from '../utils/dataUtils';
 import { getcolorbylayer } from '../utils/getMeshColor';
 import CoordinateTransformer from '../utils/CoordinateTransformer';
 import roadmodeltest from "../staticModel/RoadwayModel";
+import { ContourMeshCreator } from '../contourLine/ContourMeshCreator';
+
 import * as THREE from 'three';
 
 // import {
