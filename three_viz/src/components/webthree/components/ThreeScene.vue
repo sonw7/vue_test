@@ -1,4 +1,3 @@
-<!-- src/components/ThreeScene.vue -->
 <template>
   <div ref="sceneContainer">
     <!-- 通用扩展菜单 -->
@@ -29,12 +28,6 @@ import { ContourMeshCreator } from '../contourLine/ContourMeshCreator';
 
 import * as THREE from 'three';
 
-// import {
-//   getFaultModel,
-//   getDrillsModel,
-//   get3DRoadwayModel, 
-//   get3DFalutsModel
-// } from "../modelRequset/threeModelRequest";
 import LayerControl from "./LayerControl.vue";
 import Menu from "./Menu.vue";
 import { menuItems as baseMenuItems, menuDefaultValues } from "../configs/menuConfig";
@@ -43,6 +36,7 @@ import { toggleLayerVisibility } from "../utils/layerVisibility";
 import { getTextureUrl } from '../utils/uvMappingUtils';
 import { loadAndRenderDrills } from "../staticModel/DrillModel";
 import { getLayerName } from '../view_util/layerUtils';
+
 export default {
   name: "ThreeScene",
   components: {
@@ -56,31 +50,109 @@ export default {
     const globalOffset = ref({ x: 0, y: 0, z: 0 });
     const modelCentered = ref(false);
 
+    // 等值线相关状态
+    const contourCreators = ref({}); // 存储每个地层的等值线创建器
+    const contourVisible = ref({}); // 存储每个地层的等值线可见性
+    const activeContourLayer = ref(null); // 当前活动的等值线图层
+    
+    // 等值线参数
+    const contourParams = reactive({
+      count: 10,
+      color: '#000000',
+      opacity: 0.7,
+      scale: 1.0
+    });
+
     // 动态菜单项配置
     const menuItems = ref([...baseMenuItems]);
-    const menuValues = reactive({ ...menuDefaultValues });
-    const onMenuChange = (event) => handleMenuChange(event, sceneManager.value);
+    
+    // 添加等值线控制菜单项
+    const contourMenuItem = {
+      key: "contourLines",
+      label: "等值线控制",
+      type: "group",
+      children: [
+        {
+          key: "enableContour",
+          label: "显示等值线",
+          type: "switch",
+          value: false
+        },
+        {
+          key: "contourLayer",
+          label: "选择地层",
+          type: "select",
+          options: [], // 将在更新菜单项时填充
+          value: ""
+        },
+        {
+          key: "contourCount",
+          label: "等值线数量",
+          type: "slider",
+          min: 1,
+          max: 30,
+          step: 1,
+          value: contourParams.count
+        },
+        {
+          key: "contourColor",
+          label: "等值线颜色",
+          type: "color",
+          value: contourParams.color
+        },
+        {
+          key: "contourOpacity",
+          label: "等值线透明度",
+          type: "slider",
+          min: 0,
+          max: 1,
+          step: 0.1,
+          value: contourParams.opacity
+        }
+      ]
+    };
+    
+    // 将等值线菜单添加到menuItems
+    menuItems.value.push(contourMenuItem);
+    
+    const menuValues = reactive({ 
+      ...menuDefaultValues,
+      enableContour: false,
+      contourLayer: "",
+      contourCount: contourParams.count,
+      contourColor: contourParams.color,
+      contourOpacity: contourParams.opacity
+    });
+    
+    // 扩展菜单变更处理函数
+    const onMenuChange = (event) => {
+      const { key, value } = event;
+      
+      // 处理等值线相关的菜单变更
+      if (key === 'enableContour') {
+        toggleContourLines(value);
+      } else if (key === 'contourLayer') {
+        updateActiveContourLayer(value);
+      } else if (key === 'contourCount') {
+        updateContourParam('count', value);
+      } else if (key === 'contourColor') {
+        updateContourParam('color', value);
+      } else if (key === 'contourOpacity') {
+        updateContourParam('opacity', value);
+      } else {
+        // 处理其他菜单项
+        handleMenuChange(event, sceneManager.value);
+      }
+    };
+    
     const onMenuAction = (key) => handleMenuAction(key, sceneManager.value);
 
     // 存储所有图层的名称
     const layerNames = ref([]);
 
-    // // 动态生成地层选择的选项
-    // const updateMenuItems = () => {
-    //   const layerOptions = layerNames.value.map(([group, name]) => ({
-    //     label: `${group} - ${name}`,
-    //     value: name,
-    //   }));
-    //   menuItems.value = menuItems.value.map((item) => {
-    //     if (item.key === "layerSelect") {
-    //       return { ...item, options: layerOptions };
-    //     }
-    //     return item;
-    //   });
-    // };
 // 动态生成地层选择的选项
 const updateMenuItems = () => {
-  // 筛选出只属于"地层"组的图层，用于地层间距计算
+  // 筛选出只属于"地层"组的图层，用于地层间距计算和等值线
   const layerOptions = layerNames.value
     .filter(([group]) => group === "地层")
     .map(([group, name]) => ({
@@ -120,9 +192,22 @@ const updateMenuItems = () => {
         })
       };
     }
-    return item;
+    else if (item.key === "contourLines") {
+      // 更新等值线控制中的地层选择下拉框
+      return {
+        ...item,
+        children: item.children.map(child => {
+          if (child.key === "contourLayer") {
+            return { ...child, options: layerOptions };
+          }
+          return child;
+        })
+      };
+    }
+        return item;
   });
 };
+   
     // 监听 layerNames 的变化，并更新 menuItems
     watch(layerNames, updateMenuItems, { deep: true });
 
@@ -191,10 +276,181 @@ const updateMenuItems = () => {
       return offset;
     };
 
-    // 添加模型并应用全局偏移
-// 添加模型并应用全局偏移
-// 修改 ThreeScene.vue
-// 修改 ThreeScene.vue 中的 onMounted 方法
+    // 等值线相关功能
+    
+    // 为指定图层创建等值线
+    const createContourForLayer = (layerName) => {
+      if (!sceneManager.value) return;
+      
+      // 获取图层的网格
+      const meshes = sceneManager.value.getMeshesByLayer(layerName);
+      if (!meshes || meshes.length === 0) {
+        console.warn(`No meshes found for layer: ${layerName}`);
+        return;
+      }
+      
+      const mesh = meshes[0]; // 假设每个图层只有一个网格
+      
+      // 提取网格的顶点、索引和深度数据
+      const vertices = Array.from(mesh.geometry.attributes.position.array);
+      const indices = mesh.geometry.index ? Array.from(mesh.geometry.index.array) : [];
+      
+      // 使用顶点的z坐标作为深度值
+      const depths = [];
+      for (let i = 0; i < vertices.length; i += 3) {
+        depths.push(vertices[i + 2]);
+      }
+      
+      // 创建等值线生成器
+      const contourCreator = new ContourMeshCreator({
+        scale: contourParams.scale,
+        contourCount: contourParams.count,
+        contourColor: contourParams.color,
+        contourOpacity: contourParams.opacity
+      });
+      
+      // 生成等值线
+      const { contourLines } = contourCreator.createFromData({
+        vertices,
+        indices,
+        depths
+      });
+      
+      // 将等值线应用到场景中，并应用与网格相同的变换
+      contourLines.position.copy(mesh.position);
+      contourLines.rotation.copy(mesh.rotation);
+      contourLines.scale.copy(mesh.scale);
+      
+      // 默认隐藏等值线
+      contourLines.visible = false;
+      
+      // 将等值线添加到场景
+      sceneManager.value.scene.add(contourLines);
+      
+      // 存储等值线创建器以便后续更新
+      contourCreators.value[layerName] = {
+        creator: contourCreator,
+        contourLines: contourLines
+      };
+      
+      // 初始化可见性状态
+      contourVisible.value[layerName] = false;
+      
+      console.log(`Created contour lines for layer: ${layerName}`);
+      
+      return contourLines;
+    };
+    
+    // 切换等值线显示状态
+    const toggleContourLines = (visible) => {
+      if (!activeContourLayer.value) {
+        // 如果没有活动图层，但开启了等值线，则自动选择第一个地层图层
+        if (visible) {
+          const firstLayerName = layerNames.value.find(([group]) => group === "地层")?.[1];
+          if (firstLayerName) {
+            updateActiveContourLayer(firstLayerName);
+            menuValues.contourLayer = firstLayerName;
+          }
+        }
+        return;
+      }
+      
+      const layerName = activeContourLayer.value;
+      
+      // 如果该图层还没有等值线，则创建
+      if (!contourCreators.value[layerName]) {
+        createContourForLayer(layerName);
+      }
+      
+      // 更新等值线可见性
+      if (contourCreators.value[layerName]) {
+        contourCreators.value[layerName].contourLines.visible = visible;
+        contourVisible.value[layerName] = visible;
+      }
+    };
+    
+    // 更新活动等值线图层
+    const updateActiveContourLayer = (layerName) => {
+      // 隐藏当前活动图层的等值线
+      if (activeContourLayer.value && contourCreators.value[activeContourLayer.value]) {
+        contourCreators.value[activeContourLayer.value].contourLines.visible = false;
+      }
+      
+      // 设置新的活动图层
+      activeContourLayer.value = layerName;
+      
+      // 如果启用了等值线显示，则显示新图层的等值线
+      if (menuValues.enableContour) {
+        // 如果该图层还没有等值线，则创建
+        if (!contourCreators.value[layerName]) {
+          createContourForLayer(layerName);
+        }
+        
+        // 显示等值线
+        if (contourCreators.value[layerName]) {
+          contourCreators.value[layerName].contourLines.visible = true;
+          contourVisible.value[layerName] = true;
+        }
+      }
+    };
+    
+    // 更新等值线参数
+    const updateContourParam = (param, value) => {
+      contourParams[param] = value;
+      
+      // 如果有活动图层，则更新其等值线
+      if (activeContourLayer.value && contourCreators.value[activeContourLayer.value]) {
+        const { creator, contourLines } = contourCreators.value[activeContourLayer.value];
+        
+        // 更新等值线参数
+        creator.updateContourParams({
+          contourCount: contourParams.count,
+          contourColor: contourParams.color,
+          contourOpacity: contourParams.opacity
+        });
+        
+        // 获取图层的网格
+        const meshes = sceneManager.value.getMeshesByLayer(activeContourLayer.value);
+        if (!meshes || meshes.length === 0) return;
+        
+        const mesh = meshes[0];
+        
+        // 提取网格数据
+        const vertices = Array.from(mesh.geometry.attributes.position.array);
+        const indices = mesh.geometry.index ? Array.from(mesh.geometry.index.array) : [];
+        
+        // 使用顶点的z坐标作为深度值
+        const depths = [];
+        for (let i = 0; i < vertices.length; i += 3) {
+          depths.push(vertices[i + 2]);
+        }
+        
+        // 移除旧的等值线
+        sceneManager.value.scene.remove(contourLines);
+        
+        // 生成新的等值线
+        const { contourLines: newContourLines } = creator.createFromData({
+          vertices,
+          indices,
+          depths
+        });
+        
+        // 应用与网格相同的变换
+        newContourLines.position.copy(mesh.position);
+        newContourLines.rotation.copy(mesh.rotation);
+        newContourLines.scale.copy(mesh.scale);
+        
+        // 设置可见性
+        newContourLines.visible = contourVisible.value[activeContourLayer.value];
+        
+        // 添加到场景
+        sceneManager.value.scene.add(newContourLines);
+        
+        // 更新引用
+        contourCreators.value[activeContourLayer.value].contourLines = newContourLines;
+      }
+    };
+
 onMounted(() => {
   if (sceneContainer.value) {
     const manager = new SceneManager(sceneContainer.value);
@@ -225,153 +481,154 @@ onMounted(() => {
     // 本地加载巷道模型
     roadmodeltest(sceneManager.value, layerNames.value);
 
-    // 首先加载并处理地层数据
-    fetch("/layer.txt")
-      .then(response => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-        return response.text();
-      })
-      .then(text => {
-        const processedData = processData(text);
-        console.log("地层数量", processedData.length);
-        console.log("地层数据", processedData);
-        
-        // 添加第一个图层
-        if (processedData.length > 0) {
-          const firstLayerName = getLayerName(0);
-          
-          // 添加第一个图层
-          sceneManager.value.addModel({
-            type: "triangleMesh",
-            data: {
-              vertices: processedData[0].vertices,
-              indices: processedData[0].indices,
-            },
-            layer: firstLayerName,
-            options: {
-              color: getcolorbylayer(0),
-              scaleFactor: transformer.scale.x,
-              rotationAngle: { x: transformer.rotation.x, z: transformer.rotation.z },
-              position: { x: 0, y: 0, z: 0 },
-              textureUrl: getTextureUrl(0),
-              textureRepeat: 50
-            },
-          });
-          
-          layerNames.value.push(["地层", firstLayerName]);
-          
-          // 计算包围盒并获取偏移量
-          const offset = centerModelAndUpdateTransformer(firstLayerName);
-          
-          // 使用计算出的偏移量更新transformer
-          transformer.updateParams({
-            offset: offset
-          });
-          
-          console.log("Updated transformer with offset:", offset);
-          console.log("Current transformer params:", transformer.getParams());
-          
-          // 添加其余图层，应用相同的偏移
-          for (let i = 1; i < processedData.length; i++) {
-            if(i==17){
-              continue;
+        // 首先加载并处理地层数据
+        fetch("/layer.txt")
+          .then(response => {
+            if (!response.ok) {
+              throw new Error("Network response was not ok");
             }
-            const layerName = getLayerName(i);
+            return response.text();
+          })
+          .then(text => {
+            const processedData = processData(text);
+            console.log("地层数量", processedData.length);
+            console.log("地层数据", processedData);
             
-            // 使用更新后的transformer应用到新模型
-            sceneManager.value.addModel({
-              type: "triangleMesh",
-              data: {
-                vertices: processedData[i].vertices,
-                indices: processedData[i].indices,
-              },
-              layer: layerName,
-              options: {
-                color: getcolorbylayer(i),
-                scaleFactor: transformer.scale.x,
-                rotationAngle: { x: transformer.rotation.x, z: transformer.rotation.z },
-                position: transformer.offset,
-                textureUrl: getTextureUrl(i),
-                textureRepeat: 100
-              },
-            });
-            
-            layerNames.value.push(["地层", layerName]);
-          }
-          
-          // 重要：在所有地层加载完成后，再加载钻孔数据
-          console.log("开始加载钻孔，使用的偏移量:", transformer.offset);
-          loadAndRenderDrills(sceneManager.value, transformer, layerNames.value);
-          
-          // 在地层处理完成后，再加载断层数据
-          // 这样可以确保使用正确的偏移量
-          return fetch("/fault.txt");
-        }
-        
-        return Promise.reject("No layer data found");
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-        return response.text();
-      })
-      .then(text => {
-        const processedData = processData(text);
-        console.log("断层数量", processedData.length);
-        console.log("断层数据", processedData);
-        console.log("加载断层使用的偏移量:", sceneTransformer.value.offset);
-        
-        // 添加断层图层，使用已更新的偏移量
-        if (processedData.length > 0) {
-          for (let i = 0; i < processedData.length; i++) {
-            const layerName = `Fault_${i}`;
-            
-            // 使用更新后的transformer应用到新模型
-            sceneManager.value.addModel({
-              type: "triangleMesh",
-              data: {
-                vertices: processedData[i].vertices,
-                indices: processedData[i].indices,
-              },
-              layer: layerName,
-              options: {
-                color: "#ec6a5d",
-                scaleFactor: sceneTransformer.value.scale.x,
-                rotationAngle: { 
-                  x: sceneTransformer.value.rotation.x, 
-                  z: sceneTransformer.value.rotation.z
+            // 添加第一个图层
+            if (processedData.length > 0) {
+              const firstLayerName = getLayerName(0);
+              
+              // 添加第一个图层
+              sceneManager.value.addModel({
+                type: "triangleMesh",
+                data: {
+                  vertices: processedData[0].vertices,
+                  indices: processedData[0].indices,
                 },
-                position: {
-                  x: sceneTransformer.value.offset.x*0.388,
-                  y: sceneTransformer.value.offset.y,
-                  z: sceneTransformer.value.offset.z*1.745
+                layer: firstLayerName,
+                options: {
+                  color: getcolorbylayer(0),
+                  scaleFactor: transformer.scale.x,
+                  rotationAngle: { x: transformer.rotation.x, z: transformer.rotation.z },
+                  position: { x: 0, y: 0, z: 0 },
+                  textureUrl: getTextureUrl(0),
+                  textureRepeat: 50
                 },
-              },
-            });
+              });
+              
+              layerNames.value.push(["地层", firstLayerName]);
+              
+              // 计算包围盒并获取偏移量
+              const offset = centerModelAndUpdateTransformer(firstLayerName);
+              
+              // 使用计算出的偏移量更新transformer
+              transformer.updateParams({
+                offset: offset
+              });
+              
+              console.log("Updated transformer with offset:", offset);
+              console.log("Current transformer params:", transformer.getParams());
+              
+              // 添加其余图层，应用相同的偏移
+              for (let i = 1; i < processedData.length; i++) {
+                if(i==17){
+                  continue;
+                }
+                const layerName = getLayerName(i);
+                
+                // 使用更新后的transformer应用到新模型
+                sceneManager.value.addModel({
+                  type: "triangleMesh",
+                  data: {
+                    vertices: processedData[i].vertices,
+                    indices: processedData[i].indices,
+                  },
+                  layer: layerName,
+                  options: {
+                    color: getcolorbylayer(i),
+                    scaleFactor: transformer.scale.x,
+                    rotationAngle: { x: transformer.rotation.x, z: transformer.rotation.z },
+                    position: transformer.offset,
+                    textureUrl: getTextureUrl(i),
+                    textureRepeat: 100
+                  },
+                });
+                
+                layerNames.value.push(["地层", layerName]);
+              }
+              
+              // 重要：在所有地层加载完成后，再加载钻孔数据
+              console.log("开始加载钻孔，使用的偏移量:", transformer.offset);
+              loadAndRenderDrills(sceneManager.value, transformer, layerNames.value);
+              
+              // 在地层处理完成后，再加载断层数据
+              // 这样可以确保使用正确的偏移量
+              return fetch("/fault.txt");
+            }
             
-            layerNames.value.push(["断层", layerName]);
-          }
-        }
-      })
-      .catch(error => {
-        console.error("Error loading and processing data:", error);
-      });
+            return Promise.reject("No layer data found");
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error("Network response was not ok");
+            }
+            return response.text();
+          })
+          .then(text => {
+            const processedData = processData(text);
+            console.log("断层数量", processedData.length);
+            console.log("断层数据", processedData);
+            console.log("加载断层使用的偏移量:", sceneTransformer.value.offset);
+            
+            // 添加断层图层，使用已更新的偏移量
+            if (processedData.length > 0) {
+              for (let i = 0; i < processedData.length; i++) {
+                const layerName = `Fault_${i}`;
+                
+                // 使用更新后的transformer应用到新模型
+                sceneManager.value.addModel({
+                  type: "triangleMesh",
+                  data: {
+                    vertices: processedData[i].vertices,
+                    indices: processedData[i].indices,
+                  },
+                  layer: layerName,
+                  options: {
+                    color: "#ec6a5d",
+                    scaleFactor: sceneTransformer.value.scale.x,
+                    rotationAngle: { 
+                      x: sceneTransformer.value.rotation.x, 
+                      z: sceneTransformer.value.rotation.z
+                    },
+                    position: {
+                      x: sceneTransformer.value.offset.x*0.388,
+                      y: sceneTransformer.value.offset.y,
+                      z: sceneTransformer.value.offset.z*1.745
+                    },
+                  },
+                });
+                
+                layerNames.value.push(["断层", layerName]);
+              }
+            }
+          })
+          .catch(error => {
+            console.error("Error loading and processing data:", error);
+          });
 
-    // 监听窗口大小变化，更新画布尺寸
-    const resizeHandler = () => {
-      if (sceneManager.value && sceneContainer.value) {
-        sceneManager.value.onWindowResize(
-          sceneContainer.value.clientWidth,
-          sceneContainer.value.clientHeight
-        );
+        // 监听窗口大小变化，更新画布尺寸
+        const resizeHandler = () => {
+          if (sceneManager.value && sceneContainer.value) {
+            sceneManager.value.onWindowResize(
+              sceneContainer.value.clientWidth,
+              sceneContainer.value.clientHeight
+            );
+          }
+        };
+        window.addEventListener("resize", resizeHandler);
       }
-    };
-    window.addEventListener("resize", resizeHandler);
-  }
-});
+    });
+    
     onUnmounted(() => {
       if (sceneManager.value) {
         sceneManager.value.dispose();
@@ -387,6 +644,10 @@ onMounted(() => {
       onMenuChange,
       onMenuAction,
       onLayerToggle,
+      // 暴露等值线相关方法
+      toggleContourLines,
+      updateActiveContourLayer,
+      updateContourParam,
       // 暴露给模板使用的方法
       centerModelAndUpdateTransformer
     };
