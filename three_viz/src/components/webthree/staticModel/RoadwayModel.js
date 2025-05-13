@@ -5,7 +5,7 @@ export default function roadmodeltest(SceneManager, layerNames) {
   let roadways = new THREE.Object3D();
   
   // 使用 fetch 加载 JSON 文件
-  fetch('/roadway.json')
+  fetch('/jsonData/roadway.json')
     .then(response => response.json())
     .then(road_data => {
       const roads = road_data;    

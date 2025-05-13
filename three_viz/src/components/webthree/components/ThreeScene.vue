@@ -482,7 +482,7 @@ onMounted(() => {
     roadmodeltest(sceneManager.value, layerNames.value);
 
         // 首先加载并处理地层数据
-        fetch("/layer.txt")
+        fetch("/jsonData/layer.txt")
           .then(response => {
             if (!response.ok) {
               throw new Error("Network response was not ok");
@@ -563,7 +563,7 @@ onMounted(() => {
               
               // 在地层处理完成后，再加载断层数据
               // 这样可以确保使用正确的偏移量
-              return fetch("/fault.txt");
+              return fetch("/jsonData/fault.txt");
             }
             
             return Promise.reject("No layer data found");

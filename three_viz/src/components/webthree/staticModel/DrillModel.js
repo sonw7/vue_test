@@ -23,7 +23,7 @@ async function loadAndRenderDrills(sceneManager, transformer, layerNames = null)
       }
       
     // 加载钻孔数据
-    const response = await fetch('/drills.txt');
+    const response = await fetch('/jsonData/drills.txt');
     if (!response.ok) {
       throw new Error('无法加载钻孔数据文件');
     }
