@@ -11,7 +11,9 @@
   "dependencies": {
     "antd": "^5.24.3",
     "element-plus": "^2.9.5",
+    "pinia": "^3.0.3",
     "three": "^0.174.0",
+    "three_viz": "file:",
     "vue": "^3.5.13"
   },
   "devDependencies": {
