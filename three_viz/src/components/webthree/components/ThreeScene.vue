@@ -18,7 +18,8 @@
 </template>
 
 <script>
-import { onMounted, onUnmounted, ref, reactive, watch } from "vue";
+import { onMounted, onUnmounted, ref, reactive, watch, computed } from "vue";
+import { useThreeStore } from "../../../store/threeStore";
 import SceneManager from "./SceneManager";
 import { processData } from '../utils/dataUtils';
 import { getcolorbylayer } from '../utils/getMeshColor';
@@ -49,6 +50,7 @@ export default {
     const sceneTransformer = ref(null);
     const globalOffset = ref({ x: 0, y: 0, z: 0 });
     const modelCentered = ref(false);
+    const threeStore = useThreeStore();
 
     // 等值线相关状态
     const contourCreators = ref({}); // 存储每个地层的等值线创建器
@@ -124,28 +126,33 @@ export default {
       contourOpacity: contourParams.opacity
     });
     
-    // 扩展菜单变更处理函数
-    const onMenuChange = (event) => {
-      const { key, value } = event;
-      
-      // 处理等值线相关的菜单变更
-      if (key === 'enableContour') {
-        toggleContourLines(value);
-      } else if (key === 'contourLayer') {
-        updateActiveContourLayer(value);
-      } else if (key === 'contourCount') {
-        updateContourParam('count', value);
-      } else if (key === 'contourColor') {
-        updateContourParam('color', value);
-      } else if (key === 'contourOpacity') {
-        updateContourParam('opacity', value);
-      } else {
-        // 处理其他菜单项
-        handleMenuChange(event, sceneManager.value);
-      }
-    };
+    // 监听store中的状态变化
+    watch(() => threeStore.contourEnabled, (enabled) => {
+      toggleContourLines(enabled);
+    });
     
-    const onMenuAction = (key) => handleMenuAction(key, sceneManager.value);
+    watch(() => threeStore.activeContourLayer, (layerName) => {
+      if (layerName) {
+        updateActiveContourLayer(layerName);
+      }
+    });
+    
+    watch(() => threeStore.contourParams, (params) => {
+      // 更新等值线参数
+      Object.entries(params).forEach(([key, value]) => {
+        updateContourParam(key, value);
+      });
+    }, { deep: true });
+    
+    // 同步全局偏移量到store
+    watch(globalOffset, (newOffset) => {
+      threeStore.updateGlobalOffset(newOffset);
+    }, { deep: true });
+    
+    // 同步模型居中状态到store
+    watch(modelCentered, (centered) => {
+      threeStore.setModelCentered(centered);
+    });
 
     // 存储所有图层的名称
     const layerNames = ref([]);
@@ -217,6 +224,13 @@ const updateMenuItems = () => {
         return;
       }
       toggleLayerVisibility(sceneManager.value, activeLayers, layerNames.value);
+      
+      // 更新store中的图层可见性
+      const layerVisibilityMap = {};
+      layerNames.value.forEach(([_, name]) => {
+        layerVisibilityMap[name] = activeLayers.includes(name);
+      });
+      threeStore.updateLayerVisibility(layerVisibilityMap);
     };
 
     // 计算模型包围盒并居中
@@ -270,6 +284,10 @@ const updateMenuItems = () => {
       
       // 标记模型已居中
       modelCentered.value = true;
+      
+      // 同步到store
+      threeStore.setModelCentered(true);
+      threeStore.updateGlobalOffset(offset);
       
       console.log(`Applied offset to center model: `, offset);
       
@@ -451,6 +469,34 @@ const updateMenuItems = () => {
       }
     };
 
+    // 扩展菜单变更处理函数
+    const onMenuChange = (event) => {
+      const { key, value } = event;
+      
+      // 处理等值线相关的菜单变更
+      if (key === 'enableContour') {
+        toggleContourLines(value);
+        threeStore.toggleContourLines(value);
+      } else if (key === 'contourLayer') {
+        updateActiveContourLayer(value);
+        threeStore.setActiveContourLayer(value);
+      } else if (key === 'contourCount') {
+        updateContourParam('count', value);
+        threeStore.updateContourParam('count', value);
+      } else if (key === 'contourColor') {
+        updateContourParam('color', value);
+        threeStore.updateContourParam('color', value);
+      } else if (key === 'contourOpacity') {
+        updateContourParam('opacity', value);
+        threeStore.updateContourParam('opacity', value);
+      } else {
+        // 处理其他菜单项
+        handleMenuChange(event, sceneManager.value);
+      }
+    };
+    
+    const onMenuAction = (key) => handleMenuAction(key, sceneManager.value);
+
 onMounted(() => {
   if (sceneContainer.value) {
     const manager = new SceneManager(sceneContainer.value);
@@ -626,6 +672,9 @@ onMounted(() => {
           }
         };
         window.addEventListener("resize", resizeHandler);
+
+        // 将sceneManager暴露给全局，方便调试
+        window.sceneManager = sceneManager.value;
       }
     });
     
@@ -634,10 +683,16 @@ onMounted(() => {
         sceneManager.value.dispose();
       }
       window.removeEventListener("resize", () => sceneManager.value.onWindowResize());
+      
+      // 移除全局引用
+      if (window.sceneManager === sceneManager.value) {
+        window.sceneManager = null;
+      }
     });
 
     return {
       sceneContainer,
+      sceneManager, // 暴露给模板使用
       menuItems,
       menuValues,
       layerNames,
